@@ -1,0 +1,143 @@
+{
+	"info": {
+		"_postman_id": "c9c22d76-1234-4567-8901-abcdef123456",
+		"name": "Industrial OCR Engine",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Health Check",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/health",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"health"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "2. Register Model (GigaChat)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"GigaChat-Pro\",\n    \"provider\": \"gigachat\",\n    \"api_key\": \"YOUR_GIGACHAT_CREDENTIALS_HERE\",\n    \"parameters\": {\"temperature\": 0.1}\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/models/",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"models",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "3. Create Contract",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"name\": \"Invoice\",\n  \"description\": \"Standard Invoice Contract\",\n  \"schema\": {\n    \"type\": \"object\",\n    \"properties\": {\n      \"invoice_number\": {\"type\": \"string\"},\n      \"date\": {\"type\": \"string\"},\n      \"total\": {\"type\": \"number\"}\n    },\n    \"required\": [\"invoice_number\", \"total\"]\n  }\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/contracts/",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"contracts",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "4. Upload Document",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": []
+						}
+					]
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/documents/upload",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"documents",
+						"upload"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "5. Get Result",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/v1/documents/1",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"documents",
+						"1"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		}
+	]
+}

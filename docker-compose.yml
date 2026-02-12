@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ocr_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ocr_password}
+      POSTGRES_DB: ${POSTGRES_DB:-ocr_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  web:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./app:/code/app
+      - ./storage:/code/storage
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-ocr_user}:${POSTGRES_PASSWORD:-ocr_password}@db/${POSTGRES_DB:-ocr_db}
+    depends_on:
+      - db
+
+  client-demo:
+    build: .
+    command: python client_demo.py
+    volumes:
+      - .:/code
+    environment:
+      - API_URL=http://web:8000/api/v1
+    depends_on:
+      - web
+
+volumes:
+  postgres_data:
