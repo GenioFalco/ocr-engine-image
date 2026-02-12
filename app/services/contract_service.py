@@ -12,7 +12,7 @@ class ContractService:
         db_obj = Contract(
             name=obj_in.name,
             description=obj_in.description,
-            schema=obj_in.schema,
+            contract_schema=obj_in.contract_schema,
             is_active=True
         )
         self.db.add(db_obj)
