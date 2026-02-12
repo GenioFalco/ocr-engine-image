@@ -5,7 +5,7 @@ import json
 import sys
 
 # --- CONFIGURATION ---
-API_URL = os.getenv("API_URL", "http://localhost:8000/api/v1")
+API_URL = os.getenv("API_URL", "http://localhost:8090/api/v1")
 GIGACHAT_KEY = os.getenv("GIGACHAT_CREDENTIALS", "YOUR_GIGACHAT_KEY_HERE")
 
 # Set these to your actual file paths
