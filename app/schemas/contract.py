@@ -7,6 +7,9 @@ class ContractBase(BaseModel):
     description: Optional[str] = None
     json_schema: Dict[str, Any] = Field(alias="schema") # JSON Schema
 
+    class Config:
+        populate_by_name = True
+
 class ContractCreate(ContractBase):
     pass
 
