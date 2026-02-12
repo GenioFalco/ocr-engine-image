@@ -27,9 +27,21 @@ def main():
         "schema": schema_data
     }
 
+    # 0. Health Check
+    try:
+        health = requests.get(f"{API_URL.replace('/api/v1', '')}/health", timeout=5)
+        if health.status_code == 200:
+            print("[INFO] Server is reachable (Health: OK)")
+        else:
+            print(f"[WARN] Server responded with {health.status_code} on health check")
+    except Exception as e:
+        print(f"[ERROR] Could not connect to server at {API_URL}: {e}")
+        print("Check if Docker container is running: 'docker compose ps'")
+        return
+
     print(f"Uploading to {API_URL}/contracts/ ...")
     try:
-        resp = requests.post(f"{API_URL}/contracts/", json=payload, timeout=30)
+        resp = requests.post(f"{API_URL}/contracts/", json=payload, timeout=60)
         
         if resp.status_code in [200, 201]:
             print("\n[SUCCESS] Contract created!")
