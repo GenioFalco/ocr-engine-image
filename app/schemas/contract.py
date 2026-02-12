@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 class ContractBase(BaseModel):
     name: str
     description: Optional[str] = None
-    json_schema: Dict[str, Any] = Field(alias="schema") # JSON Schema
+    contract_schema: Dict[str, Any] = Field(alias="schema") # JSON Schema
 
     class Config:
         populate_by_name = True
@@ -16,7 +16,7 @@ class ContractCreate(ContractBase):
 class ContractUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
-    json_schema: Optional[Dict[str, Any]] = Field(default=None, alias="schema")
+    contract_schema: Optional[Dict[str, Any]] = Field(default=None, alias="schema")
     is_active: Optional[bool] = None
 
 class ContractRead(ContractBase):
