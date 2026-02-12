@@ -19,7 +19,7 @@ services:
       - ./app:/code/app
       - ./storage:/code/storage
     ports:
-      - "8000:8000"
+      - "8090:8000"
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-ocr_user}:${POSTGRES_PASSWORD:-ocr_password}@db/${POSTGRES_DB:-ocr_db}
     depends_on:
