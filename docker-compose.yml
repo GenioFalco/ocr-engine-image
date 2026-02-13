@@ -22,6 +22,7 @@ services:
       - "8090:8000"
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-ocr_user}:${POSTGRES_PASSWORD:-ocr_password}@db/${POSTGRES_DB:-ocr_db}
+      - GIGACHAT_CREDENTIALS=${GIGACHAT_CREDENTIALS}
     depends_on:
       - db
 

@@ -19,6 +19,31 @@ async def lifespan(app: FastAPI):
     # Startup: Create tables if they don't exist (useful for dev/mvp)
     # In production, use Alembic migrations instead.
     Base.metadata.create_all(bind=engine)
+    
+    # Auto-register GigaChat if credentials are set
+    if settings.GIGACHAT_CREDENTIALS:
+        from app.db.session import SessionLocal
+        from app.services.model_service import ModelService
+        from app.schemas.model import ModelCreate
+        
+        db = SessionLocal()
+        try:
+            model_service = ModelService(db)
+            existing = model_service.get_by_provider("gigachat")
+            if not existing:
+                logger.info("Auto-registering GigaChat model...")
+                model_service.create(ModelCreate(
+                    name="GigaChat",
+                    provider="gigachat",
+                    api_key=settings.GIGACHAT_CREDENTIALS,
+                    is_active=True,
+                    parameters={}
+                ))
+        except Exception as e:
+            logger.error(f"Failed to auto-register GigaChat: {e}")
+        finally:
+            db.close()
+            
     yield
     # Shutdown logic if needed
 
