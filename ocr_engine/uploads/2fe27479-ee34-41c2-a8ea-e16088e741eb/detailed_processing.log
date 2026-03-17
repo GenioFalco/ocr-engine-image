@@ -1,0 +1,276 @@
+
+[2026-03-12T13:24:28.492516] --- INIT ---
+File path: uploads/2fe27479-ee34-41c2-a8ea-e16088e741eb/aТ10-09-25-77-40-712527,10.pdf
+
+[2026-03-12T13:24:32.937323] --- ORIENTATION ---
+OSD detected incorrect orientation. Auto-rotating page 1 by 180 degrees.
+
+[2026-03-12T13:24:32.947395] --- OCR_START ---
+Running Tesserocr on Page 1 (in memory, 35% crop)
+
+[2026-03-12T13:24:32.955946] --- OCR_TIME ---
+Page 1 processed in 4.40s
+
+[2026-03-12T13:24:32.965025] --- OCR_RESULT ---
+Type: Invoice-Factura | Header True | ['SF:title']
+Preview:  Универсальный | Счет-фактура № 77-40 от  передаточный Исправление № — от документ SS  Продавец: ИП ...
+
+[2026-03-12T13:24:32.976078] --- ORIENTATION ---
+OSD detected incorrect orientation. Auto-rotating page 2 by 270 degrees.
+
+[2026-03-12T13:24:32.985449] --- OCR_START ---
+Running Tesserocr on Page 2 (in memory, 35% crop)
+
+[2026-03-12T13:24:32.995021] --- OCR_TIME ---
+Page 2 processed in 1.44s
+
+[2026-03-12T13:24:33.003251] --- OCR_RESULT ---
+Type: unknown | Header False | ['no-hit']
+Preview:  ...
+
+[2026-03-12T13:24:33.068048] --- SCHEMA_SELECTION ---
+Selected schema for 'Invoice-Factura': Found
+
+[2026-03-12T13:24:33.078171] --- PARALLEL_LLM ---
+Starting 1 parallel OpenRouter extractions (with staggered 1s starts)...
+
+[2026-03-12T13:24:33.091503] --- RENDER_START ---
+[Invoice-Factura] Lazily rendering 2 full pages for LLM (Matrix 2.0)
+
+[2026-03-12T13:24:33.474525] --- RENDER_TIME ---
+Rendered Invoice-Factura_1_page_1.jpg in 0.38s
+
+[2026-03-12T13:24:33.736570] --- RENDER_TIME ---
+Rendered Invoice-Factura_1_page_2.jpg in 0.25s
+
+[2026-03-12T13:24:33.745690] --- EXTRACTION_START ---
+[Invoice-Factura] Sending to OpenRouter LLM: ['Invoice-Factura_1_page_1.jpg', 'Invoice-Factura_1_page_2.jpg']
+
+[2026-03-12T13:24:54.096162] --- EXTRACTION_RESULT ---
+Doc Invoice-Factura Raw LLM Response:
+{
+  "doc_type": "Invoice-Factura",
+  "structured": {
+    "document_title": {
+      "value": "Счет-фактура",
+      "confidence": 0.99
+    },
+    "document_number": {
+      "value": "77-40",
+      "confidence": 1.0
+    },
+    "document_date": {
+      "value": "05.09.2025",
+      "confidence": 0.98
+    },
+    "currency": {
+      "value": "Российский рубль, 643",
+      "confidence": 0.95
+    },
+    "seller": {
+      "name": {
+        "value": "ИП Иванов В. А.",
+        "confidence": 0.99
+      },
+      "inn": {
+        "value": "753604922702",
+        "confidence": 1.0
+      },
+      "kpp": {
+        "value": null,
+        "confidence": 1.0
+      },
+      "address": {
+        "value": "672039, Забайкальский край, г. Чита, ул Ленина, Дом 55",
+        "confidence": 0.95
+      }
+    },
+    "buyer": {
+      "name": {
+        "value": "ООО \"ТД \"АСКОНА\"",
+        "confidence": 0.99
+      },
+      "inn": {
+        "value": "3305051742",
+        "confidence": 1.0
+      },
+      "kpp": {
+        "value": "330501001",
+        "confidence": 1.0
+      },
+      "address": {
+        "value": "601914, Владимирская область, г. Ковров, ул. Комсомольская, дом 116Г, строение 25, помещение I, этаж 4, офис 26",
+        "confidence": 0.95
+      }
+    },
+    "consignor": {
+      "name": {
+        "value": "--",
+        "confidence": 0.9
+      },
+      "inn": {
+        "value": null,
+        "confidence": 1.0
+      },
+      "kpp": {
+        "value": null,
+        "confidence": 1.0
+      }
+    },
+    "consignee": {
+      "name": {
+        "value": "--",
+        "confidence": 0.9
+      },
+      "inn": {
+        "value": null,
+        "confidence": 1.0
+      },
+      "kpp": {
+        "value": null,
+        "confidence": 1.0
+      }
+    },
+    "basis_document": {
+      "type": {
+        "value": "Универсальный передаточный документ",
+        "confidence": 0.9
+      },
+      "number": {
+        "value": "77-40",
+        "confidence": 0.95
+      },
+      "date": {
+        "value": "05.09.2025",
+        "confidence": 0.95
+      }
+    },
+    "amounts": {
+      "subtotal_without_vat": {
+        "value": 593772.58,
+        "confidence": 0.99
+      },
+      "vat_amount": {
+        "value": 118754.52,
+        "confidence": 0.99
+      },
+      "total_with_vat": {
+        "value": 712527.10,
+        "confidence": 0.99
+      }
+    },
+    "items": [
+      {
+        "line_number": {
+          "value": 1,
+          "confidence": 1.0
+        },
+        "name": {
+          "value": "Агентские услуги по заключению договоров розничной купли-продажи товаров Принципала в августе 2025г",
+          "confidence": 0.98
+        },
+        "unit": {
+          "value": null,
+          "confidence": 1.0
+        },
+        "quantity": {
+          "value": 1.0,
+          "confidence": 0.99
+        },
+        "price_without_vat": {
+          "value": 593772.58,
+          "confidence": 0.99
+        },
+        "amount_without_vat": {
+          "value": 593772.58,
+          "confidence": 0.99
+        },
+        "vat_rate": {
+          "value": "20%",
+          "confidence": 1.0
+        },
+        "vat_amount": {
+          "value": 118754.52,
+          "confidence": 0.99
+        },
+        "amount_with_vat": {
+          "value": 712527.10,
+          "confidence": 0.99
+        },
+        "code_okpd2": {
+          "value": "77-00082064",
+          "confidence": 0.9
+        }
+      }
+    ],
+    "visual_marks": {
+      "seals": [
+        {
+          "page": 1,
+          "bbox": {
+            "x1": 600,
+            "y1": 310,
+            "x2": 820,
+            "y2": 450
+          },
+          "type": "round",
+          "text": {
+            "value": "ООО ТОРГОВЫЙ ДОМ АСКОНА ИНН 3305051742",
+            "confidence": 0.85
+          },
+          "confidence": 0.9
+        },
+        {
+          "page": 2,
+          "bbox": {
+            "x1": 70,
+            "y1": 750,
+            "x2": 220,
+            "y2": 880
+          },
+          "type": "round",
+          "text": {
+            "value": "ИП ИВАНОВ ВЯЧЕСЛАВ АЛЕКСАНДРОВИЧ ДЛЯ ДОКУМЕНТОВ",
+            "confidence": 0.88
+          },
+          "confidence": 0.92
+        }
+      ],
+      "signatures": [
+        {
+          "page": 1,
+          "bbox": {
+            "x1": 580,
+            "y1": 600,
+            "x2": 680,
+            "y2": 680
+          },
+          "role": "Индивидуальный предприниматель",
+          "name": {
+            "value": "Иванов В. А.",
+            "confidence": 0.95
+          },
+          "confidence": 0.9
+        },
+        {
+          "page": 1,
+          "bbox": {
+            "x1": 780,
+            "y1": 700,
+            "x2": 880,
+            "y2": 780
+          },
+          "role": "Ответственный за правильность оформления факта хозяйственной жизни",
+          "name": {
+            "value": "Иванов В. А.",
+            "confidence": 0.95
+          },
+          "confidence": 0.9
+        }
+      ]
+    }
+  }
+}
+
+[2026-03-12T13:24:54.133014] --- COMPLETE ---
+Processing for job 2fe27479-ee34-41c2-a8ea-e16088e741eb finished successfully.

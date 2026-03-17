@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  ocr_engine:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://ocr_user:ocr_password@db:5432/ocr_db
+      - LLM_PROVIDER=gigachat
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=ocr_user
+      - POSTGRES_PASSWORD=ocr_password
+      - POSTGRES_DB=ocr_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres_data:

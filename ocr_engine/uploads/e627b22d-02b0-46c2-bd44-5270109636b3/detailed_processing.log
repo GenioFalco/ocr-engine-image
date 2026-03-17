@@ -1,0 +1,246 @@
+
+[2026-03-12T14:01:57.334281] --- INIT ---
+File path: uploads/e627b22d-02b0-46c2-bd44-5270109636b3/Акт выполненных работ №72 от 04.09.2025  (поступление) (78846617 v1).PDF
+
+[2026-03-12T14:02:00.417671] --- OCR_START ---
+Running Tesserocr on Page 1 (in memory, 35% crop)
+
+[2026-03-12T14:02:00.424948] --- OCR_TIME ---
+Page 1 processed in 3.06s
+
+[2026-03-12T14:02:00.432295] --- OCR_RESULT ---
+Type: Act | Header True | ['AKT:title']
+Preview:  `Унифицированная форма № КС-2 ` Утверждена постановлением Госкомстата России  (or 11.11.99 Xe 100 ю...
+
+[2026-03-12T14:02:00.485240] --- SCHEMA_SELECTION ---
+Selected schema for 'Act': Found
+
+[2026-03-12T14:02:00.491986] --- PARALLEL_LLM ---
+Starting 1 parallel OpenRouter extractions (with staggered 1s starts)...
+
+[2026-03-12T14:02:00.501231] --- RENDER_START ---
+[Act] Lazily rendering 1 full pages for LLM (Matrix 2.0)
+
+[2026-03-12T14:02:00.838876] --- RENDER_TIME ---
+Rendered Act_1_page_1.jpg in 0.32s
+
+[2026-03-12T14:02:00.852282] --- EXTRACTION_START ---
+[Act] Sending to OpenRouter LLM: ['Act_1_page_1.jpg']
+
+[2026-03-12T14:02:12.097014] --- EXTRACTION_RESULT ---
+Doc Act Raw LLM Response:
+{
+  "documents": [
+    {
+      "doc_type": "Act",
+      "structured": {
+        "document_title": {
+          "value": "АКТ О ПРИЕМКЕ ВЫПОЛНЕННЫХ РАБОТ",
+          "confidence": 0.99
+        },
+        "document_number": {
+          "value": "72",
+          "confidence": 0.99
+        },
+        "document_date": {
+          "value": "27.08.2025",
+          "confidence": 0.99
+        },
+        "currency": {
+          "value": "руб.",
+          "confidence": 0.9
+        },
+        "seller": {
+          "name": {
+            "value": "ИП Ольшевская Татьяна Викторовна",
+            "confidence": 0.99
+          },
+          "inn": {
+            "value": null,
+            "confidence": 0.0
+          },
+          "kpp": {
+            "value": null,
+            "confidence": 0.0
+          },
+          "address": {
+            "value": "601900, Владимирская обл., г.Ковров, ул.Дегтярева, д.164, кв.108",
+            "confidence": 0.98
+          }
+        },
+        "buyer": {
+          "name": {
+            "value": "ООО \"Аскона-Век\"",
+            "confidence": 0.99
+          },
+          "inn": {
+            "value": null,
+            "confidence": 0.0
+          },
+          "kpp": {
+            "value": null,
+            "confidence": 0.0
+          },
+          "address": {
+            "value": "601914, г.Ковров, ул.Комсомольская, д.116-г, стр.25, пом.1, 4 эт., офис 26",
+            "confidence": 0.98
+          }
+        },
+        "amounts": {
+          "subtotal_without_vat": {
+            "value": 25500.0,
+            "confidence": 0.99
+          },
+          "vat_amount": {
+            "value": 0.0,
+            "confidence": 0.9
+          },
+          "total_with_vat": {
+            "value": 25500.0,
+            "confidence": 0.99
+          }
+        },
+        "items": [
+          {
+            "line_number": {
+              "value": 1,
+              "confidence": 0.99
+            },
+            "name": {
+              "value": "Ремонт стелажного оборудования",
+              "confidence": 0.99
+            },
+            "unit": {
+              "value": null,
+              "confidence": 0.0
+            },
+            "quantity": {
+              "value": null,
+              "confidence": 0.0
+            },
+            "price_without_vat": {
+              "value": 14500.0,
+              "confidence": 0.99
+            },
+            "amount_without_vat": {
+              "value": 14500.0,
+              "confidence": 0.99
+            },
+            "vat_rate": {
+              "value": "Без НДС",
+              "confidence": 0.9
+            },
+            "vat_amount": {
+              "value": 0.0,
+              "confidence": 0.9
+            },
+            "amount_with_vat": {
+              "value": 14500.0,
+              "confidence": 0.99
+            },
+            "code_okpd2": {
+              "value": null,
+              "confidence": 0.0
+            }
+          },
+          {
+            "line_number": {
+              "value": 2,
+              "confidence": 0.99
+            },
+            "name": {
+              "value": "Распил стелажей",
+              "confidence": 0.99
+            },
+            "unit": {
+              "value": null,
+              "confidence": 0.0
+            },
+            "quantity": {
+              "value": null,
+              "confidence": 0.0
+            },
+            "price_without_vat": {
+              "value": 11000.0,
+              "confidence": 0.99
+            },
+            "amount_without_vat": {
+              "value": 11000.0,
+              "confidence": 0.99
+            },
+            "vat_rate": {
+              "value": "Без НДС",
+              "confidence": 0.9
+            },
+            "vat_amount": {
+              "value": 0.0,
+              "confidence": 0.9
+            },
+            "amount_with_vat": {
+              "value": 11000.0,
+              "confidence": 0.99
+            },
+            "code_okpd2": {
+              "value": null,
+              "confidence": 0.0
+            }
+          }
+        ]
+      },
+      "visual_marks": {
+        "seals": [
+          {
+            "page": 1,
+            "bbox": {
+              "x1": 163,
+              "y1": 671,
+              "x2": 291,
+              "y2": 846
+            },
+            "type": "round",
+            "text": {
+              "value": "Индивидуальный предприниматель Ольшевская Татьяна Викторовна ОГРН 321332800008710 ИНН 330510909778",
+              "confidence": 0.85
+            },
+            "confidence": 0.95
+          }
+        ],
+        "signatures": [
+          {
+            "page": 1,
+            "bbox": {
+              "x1": 232,
+              "y1": 661,
+              "x2": 338,
+              "y2": 735
+            },
+            "role": "Сдал",
+            "name": {
+              "value": "Ольшевская Т.В.",
+              "confidence": 0.99
+            },
+            "confidence": 0.95
+          },
+          {
+            "page": 1,
+            "bbox": {
+              "x1": 224,
+              "y1": 806,
+              "x2": 340,
+              "y2": 870
+            },
+            "role": "Принял",
+            "name": {
+              "value": null,
+              "confidence": 0.0
+            },
+            "confidence": 0.9
+          }
+        ]
+      }
+    }
+  ]
+}
+
+[2026-03-12T14:02:12.154269] --- COMPLETE ---
+Processing for job e627b22d-02b0-46c2-bd44-5270109636b3 finished successfully.

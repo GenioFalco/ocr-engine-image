@@ -1,0 +1,593 @@
+Илья, [13.11.2025 10:04]
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+split_pdf_v5_excel_folders_log.py
+
+База — v5, добавлено:
+- Раскладка по папкам:
+  <output_dir>/<ИМЯ_ИСТОЧНИКА>/
+    ├── Акт/
+    ├── Счёт/
+    ├── Счёт-фактура/
+    ├── Упд/
+    ├── Unknown/
+    ├── summary.xlsx
+    └── process.log  <-- полный консольный лог
+- В Excel пишутся ОТНОСИТЕЛЬНЫЕ пути (тип/имя файла) от корня пакета.
+- Жёсткое правило для АКТов: любая страница с шапкой АКТа — начало нового документа.
+
+Дополнительно (НАШЕ):
+- Исправляем ориентацию страниц через Tesseract OSD.
+- OCR использует уже выровненный bitmap.
+- И самое главное: при сохранении сегментов каждая страница сохраняется уже в правильной ориентации.
+  То есть итоговые PDF куски будут красиво развернуты, но исходный входной PDF мы не переписываем.
+
+Зависимости: pymupdf, pytesseract, pdf2image, openpyxl, Pillow
+"""
+
+import argparse
+import re
+import sys
+import time
+from collections import defaultdict, namedtuple
+from dataclasses import dataclass
+from pathlib import Path
+from typing import List, Tuple
+from io import BytesIO   # ### CHANGED: понадобилось для сборки страниц из картинок
+
+import fitz  # PyMuPDF
+from pdf2image import convert_from_path
+from PIL import Image
+import pytesseract
+from openpyxl import Workbook
+
+# ------------------------- Настройки -------------------------
+
+OCR_LANG = "rus+eng"
+OCR_DPI = 300
+MIN_TEXT_LEN = 160         # если на странице текста меньше — принудительно OCR
+HEADER_SCAN_LINES = 18     # сколько первых строк анализировать как "шапку"
+
+# Имена типов
+TYPE_SCHET = "Счёт"
+TYPE_SF = "Счёт-фактура"
+TYPE_UPD = "Упд"
+TYPE_AKT = "Акт"
+TYPE_UNKNOWN = "Unknown"
+
+# Куда складывать каждый тип (имена подпапок)
+TYPE_TO_DIR = {
+    TYPE_SCHET: "Счёт",
+    TYPE_SF: "Счёт-фактура",
+    TYPE_UPD: "Упд",
+    TYPE_AKT: "Акт",
+    TYPE_UNKNOWN: "Unknown",
+}
+
+# ------------------------- Регексы -------------------------
+
+def norm(s: str) -> str:
+    # Нормализация ё/е и тире, без изменения регистра (регистронезависимый поиск ниже)
+    s = s.replace("ё", "е").replace("Ё", "Е")
+    s = s.replace("–", "-").replace("—", "-")
+    return s
+
+RXF = re.IGNORECASE | re.MULTILINE
+
+# --- АКТ: множество вариантов заголовков ---
+AKT_HEADER_PATTERNS = [
+    r"\bАКТ\s*№\s*[\w/.\-]+",
+    r"\bАКТ\s+(СДАЧИ|-?\s*ПРИ[ЕЕ]М[КК]И)",
+    r"\bАКТ\s+О?\s*ВЫПОЛНЕНИИ\s+ПОРУЧЕНИЯ",
+    r"\bАКТ\s+ПРИ[ЕЕ]М[АО]-СДАЧ[ИЫ]",
+    r"\bАКТ\s+ОКАЗАННЫХ\s+УСЛУГ",
+    r"\bАКТ\s+ПРИ[ЕЕ]МА\s+УСЛУГ",
+    r"\bАКТ\s+СДАЧИ-?ПРИ[ЕЕ]МКИ",
+]
+AKT_HEADER_RX = re.compile("|".join(AKT_HEADER_PATTERNS), RXF)
+
+# --- СЧЁТ ---
+SCHET_HEADER_PATTERNS = [
+    r"\bСЧ[ЕЕ]Т\s*(НА\s*ОПЛАТУ)?\b",
+    r"\bINVOICE\b",
+]
+SCHET_HEADER_RX = re.compile("|".join(SCHET_HEADER_PATTERNS), RXF)
+
+# --- СЧЁТ-ФАКТУРА ---
+SF_HEADER_PATTERNS = [
+    r"\bСЧ[ЕЕ]Т\s*-\s*ФАКТУРА\b",
+    r"\bСЧ[ЕЕ]ТФАКТУРА\b",
+]
+SF_HEADER_RX = re.compile("|".join(SF_HEADER_PATTERNS), RXF)
+
+# --- УПД (форма 1137, УПД и т.п.) ---
+UPD_HEADER_PATTERNS = [
+    r"\bУНИВЕРСАЛЬН(ЫЙ|ОЕ)\s+(ПЕРЕДАТОЧН(ЫЙ|ОЕ)|СЧ[ЕЕ]Т-?ФАКТУРА)\b",
+    r"Приложение\s*№\s*1\s*к\s*постановлению\s*Правительства\s*Российской\s*Федерации\s*от\s*26\s*декабря\s*2011\s*г\.\s*№\s*1137",
+]
+UPD_HEADER_RX = re.compile("|".join(UPD_HEADER_PATTERNS), RXF)
+
+# Усилители "Счёта" по реквизитам
+BANK_CLUES_RX = re.compile(
+    r"\bИНН\b|\bКПП\b|\bБИК\b|\bСч\.\s*№|\bПолучатель\b|\bПлательщик\b|\bБанк\s+получателя\b",
+    RXF,
+)
+
+# ------------------------- Структуры -------------------------
+
+@dataclass
+class PageInfo:
+    index: int
+    text: str
+    head_text: str
+    doc_type: str
+    header_hit: bool
+    reasons: List[str]
+
+Segment = namedtuple("Segment", ["doc_type", "start", "end", "reasons"])
+
+# ------------------------- Tee-логгер -------------------------
+
+class _Tee:
+    def __init__(self, *streams):
+        self.streams = streams
+
+    def write(self, data):
+        for s in self.streams:
+            try:
+                s.write(data)
+            except Exception:
+                pass
+        return len(data)
+
+Илья, [13.11.2025 10:04]
+def flush(self):
+        for s in self.streams:
+            try:
+                s.flush()
+            except Exception:
+                pass
+
+# ------------------------- Ориентация страниц -------------------------
+
+# ### CHANGED: определяем угол через Tesseract OSD
+def detect_rotation_angle(img: Image.Image) -> int:
+    """
+    Берём у Tesseract информацию об ориентации.
+    Tesseract OSD даёт "Rotate: X", где X — на сколько градусов
+    надо ПОВЕРНУТЬ по часовой стрелке, чтобы текст стал нормальным.
+    """
+    try:
+        osd = pytesseract.image_to_osd(img)
+        m = re.search(r"Rotate:\s+(\d+)", osd)
+        if m:
+            angle = int(m.group(1))
+            return angle % 360
+    except Exception:
+        pass
+    return 0
+
+# ### CHANGED: приводим картинку в нормальную ориентацию
+def auto_orient_image(img: Image.Image) -> Image.Image:
+    """
+    Возвращает картинку, развернутую так, чтобы текст читался горизонтально.
+    Важно: PIL.rotate(n) крутит ПРОТИВ часовой стрелки,
+    а Tesseract просит ПОВЕРНУТЬ ПО ЧАСОВОЙ.
+    Значит, крутим на (360 - angle) % 360.
+    """
+    angle = detect_rotation_angle(img)
+    if angle in (0, 90, 180, 270):
+        if angle != 0:
+            ccw = (360 - angle) % 360
+            return img.rotate(ccw, expand=True)
+    return img
+
+# ------------------------- Утилиты OCR/текста -------------------------
+
+def get_tesseract_version() -> str:
+    try:
+        return str(pytesseract.get_tesseract_version())
+    except Exception:
+        return "unknown"
+
+def head(text: str, n_lines: int = HEADER_SCAN_LINES) -> str:
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    return "\n".join(lines[:n_lines])
+
+def page_to_text(doc: fitz.Document, page_number: int) -> Tuple[str, bool]:
+    """
+    Возвращает (text, used_ocr) для страницы page_number (0-based).
+    Сначала пытаемся извлечь текст из PDF, если мало — делаем OCR с автоориентацией.
+    """
+    page = doc.load_page(page_number)
+    raw = page.get_text("text") or ""
+    used_ocr = False
+
+    clean = raw.strip()
+    if len(clean) < MIN_TEXT_LEN:
+        try:
+            # Рендер через PyMuPDF
+            zoom = OCR_DPI / 72.0
+            mat = fitz.Matrix(zoom, zoom)
+            pix = page.get_pixmap(matrix=mat, alpha=False)
+            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+
+            # ВАЖНО: перед OCR выравниваем картинку
+            img_for_ocr = auto_orient_image(img)
+
+            ocr_text = pytesseract.image_to_string(img_for_ocr, lang=OCR_LANG)
+            text = (clean + "\n" + ocr_text).strip()
+            used_ocr = True
+            return text, used_ocr
+        except Exception:
+            # fallback через pdf2image
+            try:
+                images = convert_from_path(
+                    input_pdf_path,
+                    first_page=page_number + 1,
+                    last_page=page_number + 1,
+                    dpi=OCR_DPI
+                )
+                if images:
+                    img2 = auto_orient_image(images[0])
+                    ocr_text = pytesseract.image_to_string(img2, lang=OCR_LANG)
+                    text = (clean + "\n" + ocr_text).strip()
+                    used_ocr = True
+                    return text, used_ocr
+            except Exception:
+                pass
+
+    return clean, used_ocr
+
+# ------------------------- Классификация страниц -------------------------
+
+def classify_page(txt: str) -> Tuple[str, bool, List[str]]:
+    """
+    Возвращает (doc_type, header_hit, reasons[])
+    header_hit=True означает, что это СТАРТ нового документа данного типа (нашли "шапку")
+    """
+    reasons = []
+    t = norm(txt)
+    h = norm(head(t))
+
+    # Порядок важен — сначала более специфичные типы
+    if UPD_HEADER_RX.search(h):
+        reasons.append("UPD:title")
+        return TYPE_UPD, True, reasons
+
+    if SF_HEADER_RX.search(h):
+        reasons.append("SF:title")
+        return TYPE_SF, True, reasons
+
+Илья, [13.11.2025 10:04]
+# АКТ: любая шапка — новый документ
+    if AKT_HEADER_RX.search(h):
+        reasons.append("AKT:title")
+        return TYPE_AKT, True, reasons
+
+    # СЧЁТ: шапка
+    if SCHET_HEADER_RX.search(h):
+        reasons.append("SCH:headline")
+        return TYPE_SCHET, True, reasons
+
+    # Усилитель для счёта: реквизиты + слово "Счёт" в тексте
+    if BANK_CLUES_RX.search(h) and re.search(r"\bСЧ[ЕЕ]Т\b", t, RXF):
+        reasons.append("SCH:bank/org")
+        return TYPE_SCHET, False, reasons
+
+    # Если внутри страницы встречается "Акт № ..." или "Сдачи-приемки" — это продолжение АКТа
+    if re.search(r"\bАКТ\s*№\s*[\w/.\-]+", t, RXF) or re.search(r"\bСДАЧИ-?ПРИ[ЕЕ]МКИ", t, RXF):
+        reasons.append("AKT:body")
+        return TYPE_AKT, False, reasons
+
+    # Прочие признаки счёт-фактуры
+    if re.search(r"\bСЧ[ЕЕ]Т\s*-\s*ФАКТУРА\b", t, RXF):
+        reasons.append("SF:body")
+        return TYPE_SF, False, reasons
+
+    # Признаки УПД
+    if re.search(r"\bУНИВЕРСАЛЬН(ЫЙ|ОЕ)\s+(ПЕРЕДАТОЧН(ЫЙ|ОЕ)|СЧ[ЕЕ]Т-?ФАКТУРА)\b", t, RXF):
+        reasons.append("UPD:body")
+        return TYPE_UPD, False, reasons
+
+    return TYPE_UNKNOWN, False, ["no-hit"]
+
+# ------------------------- FS и Excel -------------------------
+
+def ensure_tree(root_out: Path) -> dict:
+    """
+    Создаёт корневую папку и подпапки типов. Возвращает словарь {тип: Path}.
+    """
+    root_out.mkdir(parents=True, exist_ok=True)
+    subdirs = {}
+    for t, folder in TYPE_TO_DIR.items():
+        p = root_out / folder
+        p.mkdir(parents=True, exist_ok=True)
+        subdirs[t] = p
+    return subdirs
+
+# ### CHANGED: сохраняем сегменты в нормальной ориентации
+def save_segment(src_doc: fitz.Document, seg: Segment, dst_dir_for_type: Path, idx: int) -> Path:
+    """
+    Сохраняет сегмент страниц [start..end] включительно в отдельный PDF.
+    Имя: <Тип>_document_<idx>.pdf.
+
+    НОВОЕ:
+    - Каждую страницу рендерим в bitmap,
+    - выравниваем ориентацию auto_orient_image(),
+    - и вставляем как картинку на новую PDF-страницу нужного размера.
+    Таким образом итоговый PDF визуально "ровный".
+    """
+    fname = f"{seg.doc_type}_document_{idx}.pdf"
+    out_path = dst_dir_for_type / fname
+
+    new_doc = fitz.open()
+
+    zoom = OCR_DPI / 72.0
+    for pno in range(seg.start, seg.end + 1):
+        page = src_doc.load_page(pno)
+
+        # Рендерим страницу из исходного PDF в растр
+        mat = fitz.Matrix(zoom, zoom)
+        pix = page.get_pixmap(matrix=mat, alpha=False)
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+
+        # Выравниваем ориентацию
+        img_aligned = auto_orient_image(img)
+
+        # Кладём картинку в bytes (например, PNG без потерь)
+        buf = BytesIO()
+        img_aligned.save(buf, format="PNG")
+        img_bytes = buf.getvalue()
+        buf.close()
+
+        # Габариты новой страницы = размер картинки в пикселях.
+        # В PDF это "пойнты", но мы можем использовать один к одному,
+        # PyMuPDF нормально пережёвывает такие значения.
+        w, h = img_aligned.size
+        pdf_page = new_doc.new_page(width=w, height=h)
+
+        # Запихиваем картинку во всю страницу
+        pdf_page.insert_image(pdf_page.rect, stream=img_bytes)
+
+    new_doc.save(out_path)
+    new_doc.close()
+    return out_path
+# ### /CHANGED
+
+
+def autosize_columns(ws):
+    dims = {}
+    for row in ws.rows:
+        for cell in row:
+            if cell.value is not None:
+                try:
+                    col = cell.column_letter
+                except Exception:
+                    continue
+                dims[col] = max(dims.get(col, 0), len(str(cell.value)))
+    for col, width in dims.items():
+        ws.column_dimensions[col].width = min(max(width + 2, 12), 80)
+
+Илья, [13.11.2025 10:04]
+def write_excel_summary(root_out: Path, file_map: List[Tuple[Segment, Path]]):
+    """
+    Генерирует summary.xlsx
+    Лист1: Итог по типам
+    Лист2: Детали по каждому сегменту
+    В отчёте пути даём ОТНОСИТЕЛЬНЫЕ от корня пакета (тип/файл).
+    """
+    agg = defaultdict(list)
+    for seg, fpath in file_map:
+        rel = fpath.relative_to(root_out).as_posix()
+        agg[seg.doc_type].append(rel)
+
+    wb = Workbook()
+    ws1 = wb.active
+    ws1.title = "Итог"
+
+    ws1.append(["Тип документа", "Кол-во", "Файлы (относительные пути)"])
+    types_order = [TYPE_SCHET, TYPE_SF, TYPE_UPD, TYPE_AKT, TYPE_UNKNOWN]
+    for t in types_order:
+        files = agg.get(t, [])
+        ws1.append([t, len(files), "\n".join(files)])
+    autosize_columns(ws1)
+
+    ws2 = wb.create_sheet("Детали")
+    ws2.append(["#", "Тип", "Файл (отн.)", "Страницы (с–по)", "Причины классификации"])
+    for i, (seg, fpath) in enumerate(file_map, start=1):
+        rel = fpath.relative_to(root_out).as_posix()
+        ws2.append([i, seg.doc_type, rel, f"{seg.start+1}–{seg.end+1}", ", ".join(seg.reasons)])
+    autosize_columns(ws2)
+
+    out_path = root_out / "summary.xlsx"
+    wb.save(out_path)
+
+def banner(title: str, ch: str = "=", width: int = 96) -> str:
+    line = ch * width
+    return f"{line}\n{title}\n{line}"
+
+# ------------------------- Основная логика пайплайна -------------------------
+
+def process(input_pdf: Path, root_out: Path):
+    """
+    Полный пайплайн: OCR/классификация/сегментация/сохранение/отчёт.
+    ВЫВОД идёт в root_out (уже созданный в main).
+    """
+    t0 = time.time()
+    subdirs = ensure_tree(root_out)
+
+    # Заголовок
+    print(banner("Запуск разрезания PDF"))
+    print(f"📄 Входной: {input_pdf}")
+    print(f"📁 Вывод:  {root_out}")
+    print(f"🔎 Tesseract: {get_tesseract_version()}")
+    print()
+
+    # Открываем PDF
+    try:
+        doc = fitz.open(input_pdf)
+    except Exception as e:
+        print(f"❌ Не удалось открыть PDF: {e}")
+        sys.exit(2)
+
+    n_pages = doc.page_count
+    print(f"ℹ️ Страниц: {n_pages}")
+
+    pages: List[PageInfo] = []
+
+    # Прогон по страницам
+    for i in range(n_pages):
+        txt, used_ocr = page_to_text(doc, i)
+        dtype, header_hit, reasons = classify_page(txt)
+        if used_ocr:
+            reasons.append("OCR")
+        pi = PageInfo(
+            index=i,
+            text=txt,
+            head_text=head(txt),
+            doc_type=dtype,
+            header_hit=header_hit,
+            reasons=reasons,
+        )
+        pages.append(pi)
+
+        # Короткий лог
+        short = pi.head_text.replace("\n", " ")
+        if len(short) > 110:
+            short = short[:107] + "..."
+        rid = ",".join(pi.reasons)
+        print(f"   p{(i+1):03d}: {pi.doc_type or '-':>12} | reasons={rid or '-'} | {short}")
+
+    # Сегментация
+    segments: List[Segment] = []
+    current_type = None
+    seg_start = None
+    seg_reasons: List[str] = []
+
+    def close_segment(end_idx: int):
+        nonlocal segments, current_type, seg_start, seg_reasons
+        if seg_start is not None and current_type is not None:
+            seg = Segment(
+                doc_type=current_type,
+                start=seg_start,
+                end=end_idx,
+                reasons=list(dict.fromkeys(seg_reasons)),
+            )
+            segments.append(seg)
+        current_type = None
+        seg_start = None
+        seg_reasons = []
+
+    for i, p in enumerate(pages):
+        start_new = False
+
+        # 1) Любой header_hit — старт нового документа
+        if p.header_hit:
+            start_new = True
+
+        # 2) Если тип изменился — тоже новое начало
+        if current_type is not None and p.doc_type != current_type and not p.header_hit:
+            # Unknown можем тянуть внутрь текущего до явной шапки
+            if p.doc_type != TYPE_UNKNOWN:
+                start_new = True
+
+        # 3) АКТы жёстко разбиваются правилом 1 (шапка = новый док)
+
+Илья, [13.11.2025 10:04]
+if start_new:
+            if seg_start is not None:
+                close_segment(i - 1)
+            current_type = p.doc_type
+            seg_start = i
+            seg_reasons = list(p.reasons)
+        else:
+            if seg_start is None:
+                current_type = p.doc_type
+                seg_start = i
+                seg_reasons = list(p.reasons)
+            else:
+                seg_reasons.extend(p.reasons)
+
+    # Закрыть последний сегмент
+    if seg_start is not None:
+        close_segment(n_pages - 1)
+
+    # Сохранить сегменты по подпапкам
+    print()
+    print("✂️  Разделение и сохранение…")
+    out_files: List[Tuple[Segment, Path]] = []
+    counters = defaultdict(int)
+
+    for seg in segments:
+        counters[seg.doc_type] += 1
+        idx = counters[seg.doc_type]
+        dst_dir = subdirs.get(seg.doc_type, root_out / "Unknown")
+        out_path = save_segment(doc, seg, dst_dir, idx)   # уже с повёрнутыми страницами
+        out_files.append((seg, out_path))
+        print(f"   ✅ {seg.doc_type}: страницы {seg.start+1}–{seg.end+1} → {out_path.relative_to(root_out)}")
+
+    doc.close()
+
+    # Excel summary
+    write_excel_summary(root_out, out_files)
+    print(f"🧾 Отчёт: {root_out / 'summary.xlsx'}")
+
+    # Итог
+    print()
+    print(banner("Итог", "-", 96))
+    print(f"   • Сегментов: {len(out_files)}")
+    print(f"📁 Папка:     {root_out}")
+    print(f"⏱  Время:     {time.time()-t0:.1f} c")
+    print(banner("", "-", 96))
+
+# ------------------------- CLI -------------------------
+
+def main():
+    parser = argparse.ArgumentParser(description="Разделение PDF по типам с Excel-отчётом, папками и process.log")
+    parser.add_argument("input_pdf", help="Путь к исходному PDF")
+    parser.add_argument("output_dir", help="Папка, куда складывать результат")
+    args = parser.parse_args()
+
+    input_pdf = Path(args.input_pdf).expanduser().resolve()
+    output_dir = Path(args.output_dir).expanduser().resolve()
+
+    if not input_pdf.exists():
+        print(f"❌ Файл не найден: {input_pdf}")
+        sys.exit(1)
+
+    # Эта глобалка используетcя ТОЛЬКО для fallback-OCR через pdf2image
+    global input_pdf_path
+    input_pdf_path = str(input_pdf)
+
+    # Готовим корневую папку и лог
+    src_name = input_pdf.stem
+    root_out = output_dir / src_name
+    root_out.mkdir(parents=True, exist_ok=True)
+    log_path = root_out / "process.log"
+
+    # tee логирование
+    original_stdout = sys.stdout
+    original_stderr = sys.stderr
+    with open(log_path, "w", encoding="utf-8", buffering=1) as logf:
+        sys.stdout = _Tee(original_stdout, logf)
+        sys.stderr = _Tee(original_stderr, logf)
+        try:
+            print(banner("", "=", 96))
+            print(f"🕒 {time.strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"📄 Входной: {input_pdf}")
+            print(f"📁 Вывод:  {root_out}")
+            print(f"📝 Лог:    {log_path}")
+            print(banner("", "=", 96))
+
+            process(input_pdf, root_out)
+
+        finally:
+            # Восстанавливаем stdio обязательно
+            sys.stdout = original_stdout
+            sys.stderr = original_stderr
+
+if name == "__main__":
+    main()

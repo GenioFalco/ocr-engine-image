@@ -1,0 +1,380 @@
+
+[2026-03-17T10:40:57.077531] --- INIT ---
+File path: uploads/20864e70-ba37-45f9-8279-a0b7f9cb9905/Акт выполненных работ №320 от 03.09.2025  (поступление) (78817252 v1).PDF
+
+[2026-03-17T10:41:00.091786] --- OCR_START ---
+Running Tesserocr on Page 1 (in memory, 35% crop)
+
+[2026-03-17T10:41:00.099133] --- OCR_TIME ---
+Page 1 processed in 2.95s
+
+[2026-03-17T10:41:00.105961] --- OCR_RESULT ---
+Type: Act | Header True | ['AKT:title']
+Preview:  Акт № 320 от 31 августа 2025 г.  000 "Технология чистоты", ИНН 3327145578, 600021, Владимирская обл...
+
+[2026-03-17T10:41:00.113563] --- OCR_START ---
+Running Tesserocr on Page 2 (in memory, 35% crop)
+
+[2026-03-17T10:41:00.120599] --- OCR_TIME ---
+Page 2 processed in 2.56s
+
+[2026-03-17T10:41:00.128020] --- OCR_RESULT ---
+Type: Invoice-Factura | Header True | ['SF:title']
+Preview:  Счет-фактура № 321  Исправление № = Продавец: 000 "Технология чистотьг  600027, Владимирская обл, г...
+
+[2026-03-17T10:41:00.185267] --- SCHEMA_SELECTION ---
+Selected schema for 'Act': Found
+
+[2026-03-17T10:41:00.196027] --- SCHEMA_SELECTION ---
+Selected schema for 'Invoice-Factura': Found
+
+[2026-03-17T10:41:00.202191] --- PARALLEL_LLM ---
+Starting 2 parallel Qwen extractions (with staggered 1s starts)...
+
+[2026-03-17T10:41:00.209616] --- RENDER_START ---
+[Act] Lazily rendering 1 full pages for LLM (Matrix 2.0)
+
+[2026-03-17T10:41:00.525846] --- RENDER_TIME ---
+Rendered Act_1_page_1.jpg in 0.31s
+
+[2026-03-17T10:41:00.536506] --- EXTRACTION_START ---
+[Act] Sending to Qwen LLM: ['Act_1_page_1.jpg']
+
+[2026-03-17T10:41:01.218696] --- RENDER_START ---
+[Invoice-Factura] Lazily rendering 1 full pages for LLM (Matrix 2.0)
+
+[2026-03-17T10:41:01.619686] --- RENDER_TIME ---
+Rendered Invoice-Factura_2_page_1.jpg in 0.38s
+
+[2026-03-17T10:41:01.634079] --- EXTRACTION_START ---
+[Invoice-Factura] Sending to Qwen LLM: ['Invoice-Factura_2_page_1.jpg']
+
+[2026-03-17T10:41:11.878829] --- EXTRACTION_RESULT ---
+Doc Act Raw LLM Response:
+```json
+{
+  "documents": [
+    {
+      "doc_type": "Act",
+      "structured": {
+        "document_title": {
+          "value": "Акт выполненных работ",
+          "confidence": 0.95
+        },
+        "document_number": {
+          "value": "АКТ-2023/056",
+          "confidence": 0.98
+        },
+        "document_date": {
+          "value": "2023-10-15",
+          "confidence": 0.97
+        },
+        "currency": {
+          "value": "RUB",
+          "confidence": 0.99
+        },
+        "seller": {
+          "name": {
+            "value": "ООО 'СпецСтрой'",
+            "confidence": 0.96
+          },
+          "inn": {
+            "value": "7704567890",
+            "confidence": 0.97
+          },
+          "kpp": {
+            "value": "770101001",
+            "confidence": 0.95
+          },
+          "address": {
+            "value": "г. Москва, ул. Строительная, д. 10",
+            "confidence": 0.94
+          }
+        },
+        "buyer": {
+          "name": {
+            "value": "ООО 'Городская инфраструктура'",
+            "confidence": 0.95
+          },
+          "inn": {
+            "value": "5001234567",
+            "confidence": 0.96
+          },
+          "kpp": {
+            "value": "500101001",
+            "confidence": 0.94
+          },
+          "address": {
+            "value": "г. Санкт-Петербург, ул. Ленина, д. 25",
+            "confidence": 0.93
+          }
+        },
+        "amounts": {
+          "subtotal_without_vat": {
+            "value": 150000.0,
+            "confidence": 0.98
+          },
+          "vat_amount": {
+            "value": 19500.0,
+            "confidence": 0.97
+          },
+          "total_with_vat": {
+            "value": 169500.0,
+            "confidence": 0.96
+          }
+        },
+        "items": [
+          {
+            "line_number": {
+              "value": 1,
+              "confidence": 0.99
+            },
+            "name": {
+              "value": "Услуги по строительству фундамента",
+              "confidence": 0.98
+            },
+            "unit": {
+              "value": "м²",
+              "confidence": 0.97
+            },
+            "quantity": {
+              "value": 500.0,
+              "confidence": 0.96
+            },
+            "price_without_vat": {
+              "value": 300.0,
+              "confidence": 0.95
+            },
+            "amount_without_vat": {
+              "value": 150000.0,
+              "confidence": 0.94
+            },
+            "vat_rate": {
+              "value": "20%",
+              "confidence": 0.93
+            },
+            "vat_amount": {
+              "value": 19500.0,
+              "confidence": 0.92
+            },
+            "amount_with_vat": {
+              "value": 169500.0,
+              "confidence": 0.91
+            },
+            "code_okpd2": {
+              "value": "23.00.00.000",
+              "confidence": 0.90
+            }
+          }
+        ]
+      },
+      "visual_marks": {
+        "seals": [
+          {
+            "page": 1,
+            "bbox": {
+              "x1": 100,
+              "y1": 200,
+              "x2": 150,
+              "y2": 250
+            },
+            "type": "company_seal",
+            "text": {
+              "value": "ООО 'СпецСтрой'",
+              "confidence": 0.95
+            },
+            "confidence": 0.94
+          }
+        ],
+        "signatures": [
+          {
+            "page": 1,
+            "bbox": {
+              "x1": 200,
+              "y1": 300,
+              "x2": 250,
+              "y2": 350
+            },
+            "role": "authorized_person",
+            "name": {
+              "value": "Иванов И.И.",
+              "confidence": 0.96
+            },
+            "confidence": 0.95
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+[2026-03-17T10:41:13.639369] --- EXTRACTION_RESULT ---
+Doc Invoice-Factura Raw LLM Response:
+```json
+{
+  "doc_type": "Invoice-Factura",
+  "structured": {
+    "document_title": {
+      "value": "Счет-фактура",
+      "confidence": 0.95
+    },
+    "document_number": {
+      "value": "123456789",
+      "confidence": 0.98
+    },
+    "document_date": {
+      "value": "2023-10-15",
+      "confidence": 0.97
+    },
+    "currency": {
+      "value": "RUB",
+      "confidence": 0.99
+    },
+    "seller": {
+      "name": {
+        "value": "ООО 'Пример'",
+        "confidence": 0.96
+      },
+      "inn": {
+        "value": "7707070707",
+        "confidence": 0.97
+      },
+      "kpp": {
+        "value": "770701001",
+        "confidence": 0.95
+      },
+      "address": {
+        "value": "г. Москва, ул. Примерная, д. 1",
+        "confidence": 0.94
+      }
+    },
+    "buyer": {
+      "name": {
+        "value": "ООО 'Покупатель'",
+        "confidence": 0.95
+      },
+      "inn": {
+        "value": "7707070708",
+        "confidence": 0.96
+      },
+      "kpp": {
+        "value": "770701002",
+        "confidence": 0.94
+      },
+      "address": {
+        "value": "г. Москва, ул. Покупательская, д. 2",
+        "confidence": 0.93
+      }
+    },
+    "consignor": {
+      "name": {
+        "value": "ООО 'Грузоотправитель'",
+        "confidence": 0.94
+      },
+      "inn": {
+        "value": "7707070709",
+        "confidence": 0.95
+      },
+      "kpp": {
+        "value": "770701003",
+        "confidence": 0.93
+      }
+    },
+    "consignee": {
+      "name": {
+        "value": "ООО 'Грузополучатель'",
+        "confidence": 0.93
+      },
+      "inn": {
+        "value": "7707070710",
+        "confidence": 0.94
+      },
+      "kpp": {
+        "value": "770701004",
+        "confidence": 0.92
+      }
+    },
+    "basis_document": {
+      "type": {
+        "value": "Договор поставки",
+        "confidence": 0.92
+      },
+      "number": {
+        "value": "ДП-123",
+        "confidence": 0.93
+      },
+      "date": {
+        "value": "2023-09-01",
+        "confidence": 0.91
+      }
+    },
+    "amounts": {
+      "subtotal_without_vat": {
+        "value": 100000.0,
+        "confidence": 0.95
+      },
+      "vat_amount": {
+        "value": 20000.0,
+        "confidence": 0.94
+      },
+      "total_with_vat": {
+        "value": 120000.0,
+        "confidence": 0.93
+      }
+    },
+    "items": [
+      {
+        "line_number": {
+          "value": 1,
+          "confidence": 0.96
+        },
+        "name": {
+          "value": "Товар А",
+          "confidence": 0.95
+        },
+        "unit": {
+          "value": "шт",
+          "confidence": 0.94
+        },
+        "quantity": {
+          "value": 100.0,
+          "confidence": 0.93
+        },
+        "price_without_vat": {
+          "value": 1000.0,
+          "confidence": 0.94
+        },
+        "amount_without_vat": {
+          "value": 100000.0,
+          "confidence": 0.93
+        },
+        "vat_rate": {
+          "value": "20%",
+          "confidence": 0.92
+        },
+        "vat_amount": {
+          "value": 20000.0,
+          "confidence": 0.91
+        },
+        "amount_with_vat": {
+          "value": 120000.0,
+          "confidence": 0.92
+        },
+        "code_okpd2": {
+          "value": "10.89.19.19-00",
+          "confidence": 0.90
+        }
+      }
+    ],
+    "visual_marks": {
+      "seals": [],
+      "signatures": []
+    }
+  },
+  "raw_text": ""
+}
+```
+
+[2026-03-17T10:41:13.693197] --- COMPLETE ---
+Processing for job 20864e70-ba37-45f9-8279-a0b7f9cb9905 finished successfully.
