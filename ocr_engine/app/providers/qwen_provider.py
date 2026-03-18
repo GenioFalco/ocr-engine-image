@@ -39,12 +39,13 @@ class QwenProvider(BaseLLM):
     def _prepare_image_message(self, prompt: str, image_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         # Qwen-VL format is exactly the same as OpenAI's vision format
         content = [{"type": "text", "text": prompt}]
-        for item in image_data:
-            if item.get("type") == "image_url":
+        for img in image_data:
+            if "bytes" in img:
+                base64_str = base64.b64encode(img["bytes"]).decode("utf-8")
                 content.append({
                     "type": "image_url",
                     "image_url": {
-                        "url": item["image_url"]["url"]
+                        "url": f"data:image/jpeg;base64,{base64_str}"
                     }
                 })
         return content

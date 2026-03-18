@@ -1,33 +1,33 @@
 
-[2026-03-12T14:01:57.334281] --- INIT ---
-File path: uploads/e627b22d-02b0-46c2-bd44-5270109636b3/Акт выполненных работ №72 от 04.09.2025  (поступление) (78846617 v1).PDF
+[2026-03-18T12:36:35.579498] --- INIT ---
+File path: uploads/75e00d2f-2ef2-43c8-a681-2812ef550288/Акт выполненных работ №72 от 04.09.2025  (поступление) (78846617 v1).PDF
 
-[2026-03-12T14:02:00.417671] --- OCR_START ---
+[2026-03-18T12:36:38.425665] --- OCR_START ---
 Running Tesserocr on Page 1 (in memory, 35% crop)
 
-[2026-03-12T14:02:00.424948] --- OCR_TIME ---
-Page 1 processed in 3.06s
+[2026-03-18T12:36:38.432227] --- OCR_TIME ---
+Page 1 processed in 2.82s
 
-[2026-03-12T14:02:00.432295] --- OCR_RESULT ---
+[2026-03-18T12:36:38.438707] --- OCR_RESULT ---
 Type: Act | Header True | ['AKT:title']
 Preview:  `Унифицированная форма № КС-2 ` Утверждена постановлением Госкомстата России  (or 11.11.99 Xe 100 ю...
 
-[2026-03-12T14:02:00.485240] --- SCHEMA_SELECTION ---
+[2026-03-18T12:36:38.473424] --- SCHEMA_SELECTION ---
 Selected schema for 'Act': Found
 
-[2026-03-12T14:02:00.491986] --- PARALLEL_LLM ---
-Starting 1 parallel OpenRouter extractions (with staggered 1s starts)...
+[2026-03-18T12:36:38.480327] --- PARALLEL_LLM ---
+Starting 1 parallel Qwen extractions (with staggered 1s starts)...
 
-[2026-03-12T14:02:00.501231] --- RENDER_START ---
+[2026-03-18T12:36:38.487387] --- RENDER_START ---
 [Act] Lazily rendering 1 full pages for LLM (Matrix 2.0)
 
-[2026-03-12T14:02:00.838876] --- RENDER_TIME ---
-Rendered Act_1_page_1.jpg in 0.32s
+[2026-03-18T12:36:38.760142] --- RENDER_TIME ---
+Rendered Act_1_page_1.jpg in 0.26s
 
-[2026-03-12T14:02:00.852282] --- EXTRACTION_START ---
-[Act] Sending to OpenRouter LLM: ['Act_1_page_1.jpg']
+[2026-03-18T12:36:38.767337] --- EXTRACTION_START ---
+[Act] Sending to Qwen LLM: ['Act_1_page_1.jpg']
 
-[2026-03-12T14:02:12.097014] --- EXTRACTION_RESULT ---
+[2026-03-18T12:37:06.221377] --- EXTRACTION_RESULT ---
 Doc Act Raw LLM Response:
 {
   "documents": [
@@ -36,107 +36,107 @@ Doc Act Raw LLM Response:
       "structured": {
         "document_title": {
           "value": "АКТ О ПРИЕМКЕ ВЫПОЛНЕННЫХ РАБОТ",
-          "confidence": 0.99
+          "confidence": 1.0
         },
         "document_number": {
           "value": "72",
-          "confidence": 0.99
+          "confidence": 1.0
         },
         "document_date": {
           "value": "27.08.2025",
-          "confidence": 0.99
+          "confidence": 1.0
         },
         "currency": {
           "value": "руб.",
-          "confidence": 0.9
+          "confidence": 1.0
         },
         "seller": {
           "name": {
-            "value": "ИП Ольшевская Татьяна Викторовна",
-            "confidence": 0.99
+            "value": "ООО \"Аскона-Век\"",
+            "confidence": 1.0
           },
           "inn": {
-            "value": null,
-            "confidence": 0.0
+            "value": "601914",
+            "confidence": 1.0
           },
           "kpp": {
-            "value": null,
-            "confidence": 0.0
+            "value": "601914",
+            "confidence": 1.0
           },
           "address": {
-            "value": "601900, Владимирская обл., г.Ковров, ул.Дегтярева, д.164, кв.108",
-            "confidence": 0.98
+            "value": "г.Ковров, ул.Комсомольская, д.116-г, стр.25, пом.1, 4 эт., офис 26",
+            "confidence": 1.0
           }
         },
         "buyer": {
           "name": {
-            "value": "ООО \"Аскона-Век\"",
-            "confidence": 0.99
+            "value": "ИП Ольшевская Татьяна Викторовна",
+            "confidence": 1.0
           },
           "inn": {
-            "value": null,
-            "confidence": 0.0
+            "value": "601900",
+            "confidence": 1.0
           },
           "kpp": {
             "value": null,
             "confidence": 0.0
           },
           "address": {
-            "value": "601914, г.Ковров, ул.Комсомольская, д.116-г, стр.25, пом.1, 4 эт., офис 26",
-            "confidence": 0.98
+            "value": "Владимирская обл., г.Ковров, ул.Дегтярева, д.164, кв.108",
+            "confidence": 1.0
           }
         },
         "amounts": {
           "subtotal_without_vat": {
             "value": 25500.0,
-            "confidence": 0.99
+            "confidence": 1.0
           },
           "vat_amount": {
             "value": 0.0,
-            "confidence": 0.9
+            "confidence": 1.0
           },
           "total_with_vat": {
             "value": 25500.0,
-            "confidence": 0.99
+            "confidence": 1.0
           }
         },
         "items": [
           {
             "line_number": {
               "value": 1,
-              "confidence": 0.99
+              "confidence": 1.0
             },
             "name": {
               "value": "Ремонт стелажного оборудования",
-              "confidence": 0.99
+              "confidence": 1.0
             },
             "unit": {
               "value": null,
               "confidence": 0.0
             },
             "quantity": {
-              "value": null,
-              "confidence": 0.0
+              "value": 1.0,
+              "confidence": 1.0
             },
             "price_without_vat": {
               "value": 14500.0,
-              "confidence": 0.99
+              "confidence": 1.0
             },
             "amount_without_vat": {
               "value": 14500.0,
-              "confidence": 0.99
+              "confidence": 1.0
             },
             "vat_rate": {
-              "value": "Без НДС",
-              "confidence": 0.9
+              "value": "0%",
+              "confidence": 1.0
             },
             "vat_amount": {
               "value": 0.0,
-              "confidence": 0.9
+              "confidence": 1.0
             },
             "amount_with_vat": {
               "value": 14500.0,
-              "confidence": 0.99
+              "confidence": 1.0
             },
             "code_okpd2": {
               "value": null,
@@ -146,39 +146,39 @@ Doc Act Raw LLM Response:
           {
             "line_number": {
               "value": 2,
-              "confidence": 0.99
+              "confidence": 1.0
             },
             "name": {
               "value": "Распил стелажей",
-              "confidence": 0.99
+              "confidence": 1.0
             },
             "unit": {
               "value": null,
               "confidence": 0.0
             },
             "quantity": {
-              "value": null,
-              "confidence": 0.0
+              "value": 1.0,
+              "confidence": 1.0
             },
             "price_without_vat": {
               "value": 11000.0,
-              "confidence": 0.99
+              "confidence": 1.0
             },
             "amount_without_vat": {
               "value": 11000.0,
-              "confidence": 0.99
+              "confidence": 1.0
             },
             "vat_rate": {
-              "value": "Без НДС",
-              "confidence": 0.9
+              "value": "0%",
+              "confidence": 1.0
             },
             "vat_amount": {
               "value": 0.0,
-              "confidence": 0.9
+              "confidence": 1.0
             },
             "amount_with_vat": {
               "value": 11000.0,
-              "confidence": 0.99
+              "confidence": 1.0
             },
             "code_okpd2": {
               "value": null,
@@ -192,15 +192,15 @@ Doc Act Raw LLM Response:
           {
             "page": 1,
             "bbox": {
-              "x1": 163,
-              "y1": 671,
-              "x2": 291,
-              "y2": 846
+              "x1": 150.0,
+              "y1": 680.0,
+              "x2": 300.0,
+              "y2": 820.0
             },
             "type": "round",
             "text": {
-              "value": "Индивидуальный предприниматель Ольшевская Татьяна Викторовна ОГРН 321332800008710 ИНН 330510909778",
-              "confidence": 0.85
+              "value": "Ольшевская Татьяна Викторовна ИП * Владимирская область * ОГРН 32133250000778",
+              "confidence": 0.95
             },
             "confidence": 0.95
           }
@@ -209,32 +209,32 @@ Doc Act Raw LLM Response:
           {
             "page": 1,
             "bbox": {
-              "x1": 232,
-              "y1": 661,
-              "x2": 338,
-              "y2": 735
+              "x1": 160.0,
+              "y1": 830.0,
+              "x2": 220.0,
+              "y2": 850.0
             },
             "role": "Сдал",
             "name": {
               "value": "Ольшевская Т.В.",
-              "confidence": 0.99
+              "confidence": 0.98
             },
-            "confidence": 0.95
+            "confidence": 0.98
           },
           {
             "page": 1,
             "bbox": {
-              "x1": 224,
-              "y1": 806,
-              "x2": 340,
-              "y2": 870
+              "x1": 160.0,
+              "y1": 870.0,
+              "x2": 220.0,
+              "y2": 890.0
             },
             "role": "Принял",
             "name": {
-              "value": null,
-              "confidence": 0.0
+              "value": "М.П.",
+              "confidence": 0.95
             },
-            "confidence": 0.9
+            "confidence": 0.95
           }
         ]
       }
@@ -242,5 +242,5 @@ Doc Act Raw LLM Response:
   ]
 }
 
-[2026-03-12T14:02:12.154269] --- COMPLETE ---
-Processing for job e627b22d-02b0-46c2-bd44-5270109636b3 finished successfully.
+[2026-03-18T12:37:06.267933] --- COMPLETE ---
+Processing for job 75e00d2f-2ef2-43c8-a681-2812ef550288 finished successfully.

@@ -1,0 +1,746 @@
+
+[2026-03-18T12:18:58.823408] --- INIT ---
+File path: uploads/56322a6b-3267-434b-85fe-fcc90c6a50d4/Акт выполненных работ №320 от 03.09.2025  (поступление) (78817252 v1).PDF
+
+[2026-03-18T12:19:01.898966] --- OCR_START ---
+Running Tesserocr on Page 1 (in memory, 35% crop)
+
+[2026-03-18T12:19:01.905656] --- OCR_TIME ---
+Page 1 processed in 3.01s
+
+[2026-03-18T12:19:01.912700] --- OCR_RESULT ---
+Type: Act | Header True | ['AKT:title']
+Preview:  Акт № 320 от 31 августа 2025 г.  000 "Технология чистоты", ИНН 3327145578, 600021, Владимирская обл...
+
+[2026-03-18T12:19:01.920685] --- OCR_START ---
+Running Tesserocr on Page 2 (in memory, 35% crop)
+
+[2026-03-18T12:19:01.927525] --- OCR_TIME ---
+Page 2 processed in 2.59s
+
+[2026-03-18T12:19:01.933934] --- OCR_RESULT ---
+Type: Invoice-Factura | Header True | ['SF:title']
+Preview:  Счет-фактура № 321  Исправление № = Продавец: 000 "Технология чистотьг  600027, Владимирская обл, г...
+
+[2026-03-18T12:19:01.997568] --- SCHEMA_SELECTION ---
+Selected schema for 'Act': Found
+
+[2026-03-18T12:19:02.010156] --- SCHEMA_SELECTION ---
+Selected schema for 'Invoice-Factura': Found
+
+[2026-03-18T12:19:02.017021] --- PARALLEL_LLM ---
+Starting 2 parallel Qwen extractions (with staggered 1s starts)...
+
+[2026-03-18T12:19:02.024246] --- RENDER_START ---
+[Act] Lazily rendering 1 full pages for LLM (Matrix 2.0)
+
+[2026-03-18T12:19:02.319920] --- RENDER_TIME ---
+Rendered Act_1_page_1.jpg in 0.28s
+
+[2026-03-18T12:19:02.330220] --- EXTRACTION_START ---
+[Act] Sending to Qwen LLM: ['Act_1_page_1.jpg']
+
+[2026-03-18T12:19:03.027802] --- RENDER_START ---
+[Invoice-Factura] Lazily rendering 1 full pages for LLM (Matrix 2.0)
+
+[2026-03-18T12:19:03.409684] --- RENDER_TIME ---
+Rendered Invoice-Factura_2_page_1.jpg in 0.37s
+
+[2026-03-18T12:19:03.421916] --- EXTRACTION_START ---
+[Invoice-Factura] Sending to Qwen LLM: ['Invoice-Factura_2_page_1.jpg']
+
+[2026-03-18T12:19:15.145974] --- EXTRACTION_RESULT ---
+Doc Act Raw LLM Response:
+```json
+{
+    "type": "object",
+    "properties": {
+        "documents": [
+            {
+                "doc_type": "Act",
+                "structured": {
+                    "document_title": {
+                        "value": "Акт № 320 от 31 августа 2025 г.",
+                        "confidence": 1
+                    },
+                    "document_number": {
+                        "value": "Акт № 320 от 31 августа 2025 г.",
+                        "confidence": 1
+                    },
+                    "document_date": {
+                        "value": "16/11/20-1 от 16.11.2020",
+                        "confidence": 1
+                    },
+                    "currency": {
+                        "value": "РУБЛЕЙ",
+                        "confidence": 1
+                    },
+                    "seller": {
+                        "name": {
+                            "value": "ООО \"Технология чистоты\"",
+                            "confidence": 1
+                        },
+                        "inn": {
+                            "value": "3327145578,600021",
+                            "confidence": 1
+                        },
+                        "kpp": {
+                            "value": "",
+                            "confidence": 0
+                        },
+                        "address": {
+                            "value": "Владимирская обл, городской округ город Владимир, Владимир г, Мира ул, дом 2, офис 4, тел.: 4922363650, р/с 40702810624410000357, в банке Филиал \"Центральный\" Банка ВТБ (ПАО), БИК 044525411, к/с 30101810145250000411",
+                            "confidence": 1
+                        }
+                    },
+                    "buyer": {
+                        "name": {
+                            "value": "ООО \"Аскона-Век\"",
+                            "confidence": 1
+                        },
+                        "inn": {
+                            "value": "3305037917,601914",
+                            "confidence": 1
+                        },
+                        "kpp": {
+                            "value": "",
+                            "confidence": 0
+                        },
+                        "address": {
+                            "value": "Владимирская обл, Ковров г, Комсомольская ул, дом 116Г, строение 25, помещение 1,4 этаж, офис 26, тел.: 8(49232)9-96-46/9-96-36",
+                            "confidence": 1
+                        }
+                    },
+                    "amounts": {
+                        "subtotal_without_vat": {
+                            "value": "28 000,00",
+                            "confidence": 1
+                        },
+                        "vat_amount": {
+                            "value": "4 666,67",
+                            "confidence": 1
+                        },
+                        "total_with_vat": {
+                            "value": "28 000,00",
+                            "confidence": 1
+                        }
+                    },
+                    "items": [
+                        {
+                            "line_number": {
+                                "value": "1",
+                                "confidence": 1
+                            },
+                            "name": {
+                                "value": "Вывоз производственных отходов бункером 8м3 за август 2025 г.",
+                                "confidence": 1
+                            },
+                            "unit": {
+                                "value": "м3",
+                                "confidence": 1
+                            },
+                            "quantity": {
+                                "value": "32",
+                                "confidence": 1
+                            },
+                            "price_without_vat": {
+                                "value": "875,00",
+                                "confidence": 1
+                            },
+                            "amount_without_vat": {
+                                "value": "28 000,00",
+                                "confidence": 1
+                            },
+                            "vat_rate": {
+                                "value": "20%",
+                                "confidence": 1
+                            },
+                            "vat_amount": {
+                                "value": "4 666,67",
+                                "confidence": 1
+                            },
+                            "amount_with_vat": {
+                                "value": "28 000,00",
+                                "confidence": 1
+                            },
+                            "code_okpd2": {
+                                "value": "",
+                                "confidence": 0
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}
+```
+
+[2026-03-18T12:19:27.389190] --- EXTRACTION_RESULT ---
+Doc Invoice-Factura Raw LLM Response:
+```json
+{
+    "type": "object",
+    "properties": {
+        "doc_type": "Invoice-Factura",
+        "structured": {
+            "document_title": {
+                "value": "Счет-фактура",
+                "confidence": 1
+            },
+            "document_number": {
+                "value": "321",
+                "confidence": 1
+            },
+            "document_date": {
+                "value": "31 августа 2025 г.",
+                "confidence": 1
+            },
+            "currency": {
+                "value": "RUB",
+                "confidence": 1
+            },
+            "seller": {
+                "name": {
+                    "value": "АПРЕС",
+                    "confidence": 1
+                },
+                "inn": {
+                    "value": "3327145578/32701001",
+                    "confidence": 1
+                },
+                "kpp": {
+                    "value": "3327145578/32701001",
+                    "confidence": 1
+                },
+                "address": {
+                    "value": "600021, Владимирская обл., город Благодимор, Влаадимир г. Мира ул. дом 2, офис 4",
+                    "confidence": 1
+                }
+            },
+            "buyer": {
+                "name": {
+                    "value": "ИП КИТПИ",
+                    "confidence": 1
+                },
+                "inn": {
+                    "value": "3327145578/32701001",
+                    "confidence": 1
+                },
+                "kpp": {
+                    "value": "3326037917/60959001",
+                    "confidence": 1
+                },
+                "address": {
+                    "value": "600021, Владимирская обл., Киров г. (Кировская обл.) 400 1187, строение (6)",
+                    "confidence": 1
+                }
+            },
+            "consignor": {
+                "name": {
+                    "value": "ИП КИТПИ",
+                    "confidence": 1
+                },
+                "inn": {
+                    "value": "3327145578/32701001",
+                    "confidence": 1
+                },
+                "kpp": {
+                    "value": "3326037917/60959001",
+                    "confidence": 1
+                },
+                "address": {
+                    "value": "600021, Владимирская обл., город Благодимор, Влаадимир г. Мира ул. дом 2, офис 4",
+                    "confidence": 1
+                }
+            },
+            "consignee": {
+                "name": {
+                    "value": "АПРЕС",
+                    "confidence": 1
+                },
+                "inn": {
+                    "value": "3327145578/32701001",
+                    "confidence": 1
+                },
+                "kpp": {
+                    "value": "3327145578/32701001",
+                    "confidence": 1
+                },
+                "address": {
+                    "value": "600021, Владимирская обл., город Благодимор, Влаадимир г. Мира ул. дом 2, офис 4",
+                    "confidence": 1
+                }
+            },
+            "basis_document": {
+                "type": "Factura",
+                "number": {
+                    "value": "АКТ. № 320 от 31.08.2025 г.",
+                    "confidence": 1
+                },
+                "date": {
+                    "value": "31 августа 2025 г.",
+                    "confidence": 1
+                }
+            },
+            "amounts": {
+                "subtotal_without_vat": {
+                    "value": "28 000.00",
+                    "confidence": 1
+                },
+                "vat_amount": {
+                    "value": "4 000.57",
+                    "confidence": 1
+                },
+                "total_with_vat": {
+                    "value": "28 000.00",
+                    "confidence": 1
+                }
+            },
+            "items": [
+                {
+                    "line_number": {
+                        "value": "1",
+                        "confidence": 1
+                    },
+                    "name": {
+                        "value": "Рабочая одежда",
+                        "confidence": 1
+                    },
+                    "unit": {
+                        "value": "18",
+                        "confidence": 1
+                    },
+                    "quantity": {
+                        "value": "18",
+                        "confidence": 1
+                    },
+                    "price_without_vat": {
+                        "value": "113",
+                        "confidence": 1
+                    },
+                    "amount_without_vat": {
+                        "value": "113",
+                        "confidence": 1
+                    },
+                    "vat_rate": {
+                        "value": "20%",
+                        "confidence": 1
+                    },
+                    "vat_amount": {
+                        "value": "22.60",
+                        "confidence": 1
+                    },
+                    "amount_with_vat": {
+                        "value": "115",
+                        "confidence": 1
+                    },
+                    "code_okpd2": {
+                        "value": "",
+                        "confidence": 1
+                    }
+                },
+                {
+                    "line_number": {
+                        "value": "2",
+                        "confidence": 1
+                    },
+                    "name": {
+                        "value": "Рабочая одежда",
+                        "confidence": 1
+                    },
+                    "unit": {
+                        "value": "16",
+                        "confidence": 1
+                    },
+                    "quantity": {
+                        "value": "16",
+                        "confidence": 1
+                    },
+                    "price_without_vat": {
+                        "value": "28",
+                        "confidence": 1
+                    },
+                    "amount_without_vat": {
+                        "value": "28",
+                        "confidence": 1
+                    },
+                    "vat_rate": {
+                        "value": "20%",
+                        "confidence": 1
+                    },
+                    "vat_amount": {
+                        "value": "5.60",
+                        "confidence": 1
+                    },
+                    "amount_with_vat": {
+                        "value": "32.00",
+                        "confidence": 1
+                    },
+                    "code_okpd2": {
+                        "value": "",
+                        "confidence": 1
+                    }
+                },
+                {
+                    "line_number": {
+                        "value": "3",
+                        "confidence": 1
+                    },
+                    "name": {
+                        "value": "Рабочая одежда",
+                        "confidence": 1
+                    },
+                    "unit": {
+                        "value": "13",
+                        "confidence": 1
+                    },
+                    "quantity": {
+                        "value": "13",
+                        "confidence": 1
+                    },
+                    "price_without_vat": {
+                        "value": "729.17",
+                        "confidence": 1
+                    },
+                    "amount_without_vat": {
+                        "value": "729.17",
+                        "confidence": 1
+                    },
+                    "vat_rate": {
+                        "value": "20%",
+                        "confidence": 1
+                    },
+                    "vat_amount": {
+                        "value": "145.83",
+                        "confidence": 1
+                    },
+                    "amount_with_vat": {
+                        "value": "775.00",
+                        "confidence": 1
+                    },
+                    "code_okpd2": {
+                        "value": "",
+                        "confidence": 1
+                    }
+                },
+                {
+                    "line_number": {
+                        "value": "4",
+                        "confidence": 1
+                    },
+                    "name": {
+                        "value": "Рабочая одежда",
+                        "confidence": 1
+                    },
+                    "unit": {
+                        "value": "23",
+                        "confidence": 1
+                    },
+                    "quantity": {
+                        "value": "23",
+                        "confidence": 1
+                    },
+                    "price_without_vat": {
+                        "value": "333.33",
+                        "confidence": 1
+                    },
+                    "amount_without_vat": {
+                        "value": "333.33",
+                        "confidence": 1
+                    },
+                    "vat_rate": {
+                        "value": "20%",
+                        "confidence": 1
+                    },
+                    "vat_amount": {
+                        "value": "66.67",
+                        "confidence": 1
+                    },
+                    "amount_with_vat": {
+                        "value": "399.00",
+                        "confidence": 1
+                    },
+                    "code_okpd2": {
+                        "value": "",
+                        "confidence": 1
+                    }
+                },
+                {
+                    "line_number": {
+                        "value": "5",
+                        "confidence": 1
+                    },
+                    "name": {
+                        "value": "Рабочая одежда",
+                        "confidence": 1
+                    },
+                    "unit": {
+                        "value": "10",
+                        "confidence": 1
+                    },
+                    "quantity": {
+                        "value": "10",
+                        "confidence": 1
+                    },
+                    "price_without_vat": {
+                        "value": "28 000.00",
+                        "confidence": 1
+                    },
+                    "amount_without_vat": {
+                        "value": "28 000.00",
+                        "confidence": 1
+                    },
+                    "vat_rate": {
+                        "value": "10%",
+                        "confidence": 1
+                    },
+                    "vat_amount": {
+                        "value": "2800.00",
+                        "confidence": 1
+                    },
+                    "amount_with_vat": {
+                        "value": "30 000.00",
+                        "confidence": 1
+                    },
+                    "code_okpd2": {
+                        "value": "",
+                        "confidence": 1
+                    }
+                },
+                {
+                    "line_number": {
+                        "value": "6",
+                        "confidence": 1
+                    },
+                    "name": {
+                        "value": "Рабочая одежда",
+                        "confidence": 1
+                    },
+                    "unit": {
+                        "value": "1",
+                        "confidence": 1
+                    },
+                    "quantity": {
+                        "value": "1",
+                        "confidence": 1
+                    },
+                    "price_without_vat": {
+                        "value": "200",
+                        "confidence": 1
+                    },
+                    "amount_without_vat": {
+                        "value": "200",
+                        "confidence": 1
+                    },
+                    "vat_rate": {
+                        "value": "10%",
+                        "confidence": 1
+                    },
+                    "vat_amount": {
+                        "value": "20.00",
+                        "confidence": 1
+                    },
+                    "amount_with_vat": {
+                        "value": "200",
+                        "confidence": 1
+                    },
+                    "code_okpd2": {
+                        "value": "",
+                        "confidence": 1
+                    }
+                },
+                {
+                    "line_number": {
+                        "value": "7",
+                        "confidence": 1
+                    },
+                    "name": {
+                        "value": "Рабочая одежда",
+                        "confidence": 1
+                    },
+                    "unit": {
+                        "value": "1",
+                        "confidence": 1
+                    },
+                    "quantity": {
+                        "value": "1",
+                        "confidence": 1
+                    },
+                    "price_without_vat": {
+                        "value": "8",
+                        "confidence": 1
+                    },
+                    "amount_without_vat": {
+                        "value": "8",
+                        "confidence": 1
+                    },
+                    "vat_rate": {
+                        "value": "10%",
+                        "confidence": 1
+                    },
+                    "vat_amount": {
+                        "value": "0.80",
+                        "confidence": 1
+                    },
+                    "amount_with_vat": {
+                        "value": "8",
+                        "confidence": 1
+                    },
+                    "code_okpd2": {
+                        "value": "",
+                        "confidence": 1
+                    }
+                },
+                {
+                    "line_number": {
+                        "value": "8",
+                        "confidence": 1
+                    },
+                    "name": {
+                        "value": "Рабочая одежда",
+                        "confidence": 1
+                    },
+                    "unit": {
+                        "value": "1",
+                        "confidence": 1
+                    },
+                    "quantity": {
+                        "value": "1",
+                        "confidence": 1
+                    },
+                    "price_without_vat": {
+                        "value": "9",
+                        "confidence": 1
+                    },
+                    "amount_without_vat": {
+                        "value": "9",
+                        "confidence": 1
+                    },
+                    "vat_rate": {
+                        "value": "10%",
+                        "confidence": 1
+                    },
+                    "vat_amount": {
+                        "value": "0.90",
+                        "confidence": 1
+                    },
+                    "amount_with_vat": {
+                        "value": "9",
+                        "confidence": 1
+                    },
+                    "code_okpd2": {
+                        "value": "",
+                        "confidence": 1
+                    }
+                },
+                {
+                    "line_number": {
+                        "value": "9",
+                        "confidence": 1
+                    },
+                    "name": {
+                        "value": "Рабочая одежда",
+                        "confidence": 1
+                    },
+                    "unit": {
+                        "value": "1",
+                        "confidence": 1
+                    },
+                    "quantity": {
+                        "value": "1",
+                        "confidence": 1
+                    },
+                    "price_without_vat": {
+                        "value": "10",
+                        "confidence": 1
+                    },
+                    "amount_without_vat": {
+                        "value": "10",
+                        "confidence": 1
+                    },
+                    "vat_rate": {
+                        "value": "10%",
+                        "confidence": 1
+                    },
+                    "vat_amount": {
+                        "value": "1.00",
+                        "confidence": 1
+                    },
+                    "amount_with_vat": {
+                        "value": "10",
+                        "confidence": 1
+                    },
+                    "code_okpd2": {
+                        "value": "",
+                        "confidence": 1
+                    }
+                },
+                {
+                    "line_number": {
+                        "value": "10",
+                        "confidence": 1
+                    },
+                    "name": {
+                        "value": "Рабочая одежда",
+                        "confidence": 1
+                    },
+                    "unit": {
+                        "value": "1",
+                        "confidence": 1
+                    },
+                    "quantity": {
+                        "value": "1",
+                        "confidence": 1
+                    },
+                    "price_without_vat": {
+                        "value": "11",
+                        "confidence": 1
+                    },
+                    "amount_without_vat": {
+                        "value": "11",
+                        "confidence": 1
+                    },
+                    "vat_rate": {
+                        "value": "10%",
+                        "confidence": 1
+                    },
+                    "vat_amount": {
+                        "value": "1.10",
+                        "confidence": 1
+                    },
+                    "amount_with_vat": {
+                        "value": "12",
+                        "confidence": 1
+                    },
+                    "code_okpd2": {
+                        "value": "",
+                        "confidence": 1
+                    }
+                }
+            ],
+            "visual_marks": {
+                "seals": [],
+                "signatures": [
+                    {
+                        "page": 1,
+                        "bbox": [
+                            490,
+                            490,
+                            10,
+                            10,
+                            90
+                        ],
+                        "type": "SIGNATURE",
+                        "text": "",
+                        "confidence": 0
+                    }
+                ]
+            }
+        }
+    }
+}
+```
+
+[2026-03-18T12:19:27.457208] --- COMPLETE ---
+Processing for job 56322a6b-3267-434b-85fe-fcc90c6a50d4 finished successfully.

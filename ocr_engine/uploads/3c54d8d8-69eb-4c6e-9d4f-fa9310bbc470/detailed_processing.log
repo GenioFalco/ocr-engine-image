@@ -1,0 +1,543 @@
+
+[2026-03-18T12:24:10.868082] --- INIT ---
+File path: uploads/3c54d8d8-69eb-4c6e-9d4f-fa9310bbc470/Акт выполненных работ №320 от 03.09.2025  (поступление) (78817252 v1).PDF
+
+[2026-03-18T12:24:14.005514] --- OCR_START ---
+Running Tesserocr on Page 1 (in memory, 35% crop)
+
+[2026-03-18T12:24:14.012170] --- OCR_TIME ---
+Page 1 processed in 3.08s
+
+[2026-03-18T12:24:14.019253] --- OCR_RESULT ---
+Type: Act | Header True | ['AKT:title']
+Preview:  Акт № 320 от 31 августа 2025 г.  000 "Технология чистоты", ИНН 3327145578, 600021, Владимирская обл...
+
+[2026-03-18T12:24:14.026730] --- OCR_START ---
+Running Tesserocr on Page 2 (in memory, 35% crop)
+
+[2026-03-18T12:24:14.033330] --- OCR_TIME ---
+Page 2 processed in 2.73s
+
+[2026-03-18T12:24:14.040215] --- OCR_RESULT ---
+Type: Invoice-Factura | Header True | ['SF:title']
+Preview:  Счет-фактура № 321  Исправление № = Продавец: 000 "Технология чистотьг  600027, Владимирская обл, г...
+
+[2026-03-18T12:24:14.102354] --- SCHEMA_SELECTION ---
+Selected schema for 'Act': Found
+
+[2026-03-18T12:24:14.113537] --- SCHEMA_SELECTION ---
+Selected schema for 'Invoice-Factura': Found
+
+[2026-03-18T12:24:14.119903] --- PARALLEL_LLM ---
+Starting 2 parallel OpenRouter extractions (with staggered 1s starts)...
+
+[2026-03-18T12:24:14.127945] --- RENDER_START ---
+[Act] Lazily rendering 1 full pages for LLM (Matrix 2.0)
+
+[2026-03-18T12:24:14.439313] --- RENDER_TIME ---
+Rendered Act_1_page_1.jpg in 0.30s
+
+[2026-03-18T12:24:14.451606] --- EXTRACTION_START ---
+[Act] Sending to OpenRouter LLM: ['Act_1_page_1.jpg']
+
+[2026-03-18T12:24:15.131546] --- RENDER_START ---
+[Invoice-Factura] Lazily rendering 1 full pages for LLM (Matrix 2.0)
+
+[2026-03-18T12:24:15.508070] --- RENDER_TIME ---
+Rendered Invoice-Factura_2_page_1.jpg in 0.36s
+
+[2026-03-18T12:24:15.519781] --- EXTRACTION_START ---
+[Invoice-Factura] Sending to OpenRouter LLM: ['Invoice-Factura_2_page_1.jpg']
+
+[2026-03-18T12:24:34.354421] --- EXTRACTION_RESULT ---
+Doc Act Raw LLM Response:
+```json
+{
+  "documents": [
+    {
+      "doc_type": "Act",
+      "structured": {
+        "document_title": {
+          "value": "Акт № 320 от 31 августа 2025 г.",
+          "confidence": 0.98
+        },
+        "document_number": {
+          "value": "320",
+          "confidence": 0.95
+        },
+        "document_date": {
+          "value": "31 августа 2025 г.",
+          "confidence": 0.97
+        },
+        "currency": {
+          "value": "руб.",
+          "confidence": 0.99
+        },
+        "seller": {
+          "name": {
+            "value": "ООО \"Технология чистоты\"",
+            "confidence": 0.98
+          },
+          "inn": {
+            "value": "3327145578",
+            "confidence": 0.97
+          },
+          "kpp": {
+            "value": "4070281062441000357",
+            "confidence": 0.96
+          },
+          "address": {
+            "value": "600021, Владимирская обл., городской округ город Владимир, Владимир г., Мира ул., дом 2, офис 4",
+            "confidence": 0.95
+          }
+        },
+        "buyer": {
+          "name": {
+            "value": "ООО \"Аскона-Век\"",
+            "confidence": 0.98
+          },
+          "inn": {
+            "value": "3305037917",
+            "confidence": 0.97
+          },
+          "kpp": {
+            "value": "3010181014525000411",
+            "confidence": 0.96
+          },
+          "address": {
+            "value": "601914, Владимирская обл., Ковров г., Комсомольская ул., дом 116Г, строение 25, помещение 1,4 этаж, офис 26",
+            "confidence": 0.95
+          }
+        },
+        "amounts": {
+          "subtotal_without_vat": {
+            "value": 28000.0,
+            "confidence": 0.99
+          },
+          "vat_amount": {
+            "value": 4666.67,
+            "confidence": 0.98
+          },
+          "total_with_vat": {
+            "value": 32666.67,
+            "confidence": 0.97
+          }
+        },
+        "items": [
+          {
+            "line_number": {
+              "value": 1,
+              "confidence": 0.99
+            },
+            "name": {
+              "value": "Вывоз производственных отходов бункером 8м3 за август 2025 г.",
+              "confidence": 0.98
+            },
+            "unit": {
+              "value": "м3",
+              "confidence": 0.97
+            },
+            "quantity": {
+              "value": 32,
+              "confidence": 0.96
+            },
+            "price_without_vat": {
+              "value": 875.0,
+              "confidence": 0.95
+            },
+            "amount_without_vat": {
+              "value": 28000.0,
+              "confidence": 0.94
+            },
+            "vat_rate": {
+              "value": "20%",
+              "confidence": 0.93
+            },
+            "vat_amount": {
+              "value": 4666.67,
+              "confidence": 0.92
+            },
+            "amount_with_vat": {
+              "value": 32666.67,
+              "confidence": 0.91
+            },
+            "code_okpd2": {
+              "value": null,
+              "confidence": 0.0
+            }
+          }
+        ]
+      },
+      "visual_marks": {
+        "seals": [
+          {
+            "page": 1,
+            "bbox": {
+              "x1": 190,
+              "y1": 550,
+              "x2": 280,
+              "y2": 620
+            },
+            "type": "round",
+            "text": {
+              "value": "ООО \"Технология чистоты\"",
+              "confidence": 0.95
+            },
+            "confidence": 0.94
+          },
+          {
+            "page": 2,
+            "bbox": {
+              "x1": 500,
+              "y1": 1100,
+              "x2": 680,
+              "y2": 1180
+            },
+            "type": "round",
+            "text": {
+              "value": "ООО \"Аскона-Век\"",
+              "confidence": 0.95
+            },
+            "confidence": 0.94
+          }
+        ],
+        "signatures": [
+          {
+            "page": 1,
+            "bbox": {
+              "x1": 200,
+              "y1": 520,
+              "x2": 270,
+              "y2": 560
+            },
+            "role": "Генеральный директор",
+            "name": {
+              "value": "Ретова И. В.",
+              "confidence": 0.95
+            },
+            "confidence": 0.94
+          },
+          {
+            "page": 2,
+            "bbox": {
+              "x1": 510,
+              "y1": 1070,
+              "x2": 690,
+              "y2": 1120
+            },
+            "role": "Генеральный директор",
+            "name": {
+              "value": "Ретова И. В.",
+              "confidence": 0.95
+            },
+            "confidence": 0.94
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+[2026-03-18T12:24:41.718262] --- EXTRACTION_RESULT ---
+Doc Invoice-Factura Raw LLM Response:
+```json
+{
+  "doc_type": "Invoice-Factura",
+  "structured": {
+    "document_title": {
+      "value": "Счет-фактура",
+      "confidence": 0.95
+    },
+    "document_number": {
+      "value": "321",
+      "confidence": 0.98
+    },
+    "document_date": {
+      "value": "31 августа 2025 г.",
+      "confidence": 0.95
+    },
+    "currency": {
+      "value": "RUB",
+      "confidence": 0.9
+    },
+    "seller": {
+      "name": {
+        "value": "ООО \"Белгородская линия\"",
+        "confidence": 0.92
+      },
+      "inn": {
+        "value": "3271455783201001",
+        "confidence": 0.93
+      },
+      "kpp": {
+        "value": "320010001",
+        "confidence": 0.91
+      },
+      "address": {
+        "value": "300000, г. Белгород, ул. Ленина, д. 28",
+        "confidence": 0.9
+      }
+    },
+    "buyer": {
+      "name": {
+        "value": "ООО \"Компания\"",
+        "confidence": 0.91
+      },
+      "inn": {
+        "value": "305607975995001",
+        "confidence": 0.92
+      },
+      "kpp": {
+        "value": "300010001",
+        "confidence": 0.9
+      },
+      "address": {
+        "value": "300000, г. Белгород, ул. Ленина, д. 28",
+        "confidence": 0.9
+      }
+    },
+    "consignor": {
+      "name": {
+        "value": "ООО \"Белгородская линия\"",
+        "confidence": 0.92
+      },
+      "inn": {
+        "value": "3271455783201001",
+        "confidence": 0.93
+      },
+      "kpp": {
+        "value": "320010001",
+        "confidence": 0.91
+      }
+    },
+    "consignee": {
+      "name": {
+        "value": "ООО \"Компания\"",
+        "confidence": 0.91
+      },
+      "inn": {
+        "value": "305607975995001",
+        "confidence": 0.92
+      },
+      "kpp": {
+        "value": "300010001",
+        "confidence": 0.9
+      }
+    },
+    "basis_document": {
+      "type": {
+        "value": "Договор",
+        "confidence": 0.9
+      },
+      "number": {
+        "value": "230",
+        "confidence": 0.95
+      },
+      "date": {
+        "value": "31 августа 2023 г.",
+        "confidence": 0.9
+      }
+    },
+    "amounts": {
+      "subtotal_without_vat": {
+        "value": 28020.0,
+        "confidence": 0.95
+      },
+      "vat_amount": {
+        "value": 4006.67,
+        "confidence": 0.9
+      },
+      "total_with_vat": {
+        "value": 32026.67,
+        "confidence": 0.9
+      }
+    },
+    "items": [
+      {
+        "line_number": {
+          "value": 1,
+          "confidence": 0.95
+        },
+        "name": {
+          "value": "Поставка товаров от ООО \"Динамик\"",
+          "confidence": 0.92
+        },
+        "unit": {
+          "value": "шт",
+          "confidence": 0.9
+        },
+        "quantity": {
+          "value": 113,
+          "confidence": 0.9
+        },
+        "price_without_vat": {
+          "value": 320.0,
+          "confidence": 0.9
+        },
+        "amount_without_vat": {
+          "value": 36160.0,
+          "confidence": 0.9
+        },
+        "vat_rate": {
+          "value": "20%",
+          "confidence": 0.9
+        },
+        "vat_amount": {
+          "value": 7232.0,
+          "confidence": 0.9
+        },
+        "amount_with_vat": {
+          "value": 43392.0,
+          "confidence": 0.9
+        },
+        "code_okpd2": {
+          "value": "52.41.10.110",
+          "confidence": 0.85
+        }
+      },
+      {
+        "line_number": {
+          "value": 2,
+          "confidence": 0.95
+        },
+        "name": "Услуги по доставке",
+        "unit": {
+          "value": "шт",
+          "confidence": 0.9
+        },
+        "quantity": {
+          "value": 28,
+          "confidence": 0.9
+        },
+        "price_without_vat": {
+          "value": 320.0,
+          "confidence": 0.9
+        },
+        "amount_without_vat": {
+          "value": 8960.0,
+          "confidence": 0.9
+        },
+        "vat_rate": {
+          "value": "20%",
+          "confidence": 0.9
+        },
+        "vat_amount": {
+          "value": 1792.0,
+          "confidence": 0.9
+        },
+        "amount_with_vat": {
+          "value": 10752.0,
+          "confidence": 0.9
+        },
+        "code_okpd2": {
+          "value": "52.41.10.110",
+          "confidence": 0.85
+        }
+      },
+      {
+        "line_number": {
+          "value": 3,
+          "confidence": 0.95
+        },
+        "name": "Услуги по монтажу",
+        "unit": {
+          "value": "шт",
+          "confidence": 0.9
+        },
+        "quantity": {
+          "value": 4,
+          "confidence": 0.9
+        },
+        "price_without_vat": {
+          "value": 170.17,
+          "confidence": 0.9
+        },
+        "amount_without_vat": {
+          "value": 680.68,
+          "confidence": 0.9
+        },
+        "vat_rate": {
+          "value": "20%",
+          "confidence": 0.9
+        },
+        "vat_amount": {
+          "value": 136.14,
+          "confidence": 0.9
+        },
+        "amount_with_vat": {
+          "value": 816.82,
+          "confidence": 0.9
+        },
+        "code_okpd2": {
+          "value": "52.41.10.110",
+          "confidence": 0.85
+        }
+      },
+      {
+        "line_number": {
+          "value": 4,
+          "confidence": 0.95
+        },
+        "name": "Услуги по настройке",
+        "unit": {
+          "value": "шт",
+          "confidence": 0.9
+        },
+        "quantity": {
+          "value": 5,
+          "confidence": 0.9
+        },
+        "price_without_vat": {
+          "value": 23333.33,
+          "confidence": 0.9
+        },
+        "amount_without_vat": {
+          "value": 116666.65,
+          "confidence": 0.9
+        },
+        "vat_rate": {
+          "value": "20%",
+          "confidence": 0.9
+        },
+        "vat_amount": {
+          "value": 23333.33,
+          "confidence": 0.9
+        },
+        "amount_with_vat": {
+          "value": 140000.0,
+          "confidence": 0.9
+        },
+        "code_okpd2": {
+          "value": "52.41.10.110",
+          "confidence": 0.85
+        }
+      }
+    ],
+    "visual_marks": {
+      "seals": [],
+      "signatures": [
+        {
+          "page": 1,
+          "bbox": {
+            "x1": 520,
+            "y1": 700,
+            "x2": 560,
+            "y2": 740
+          },
+          "role": "Счет-фактура",
+          "name": {
+            "value": "Иванов И.И.",
+            "confidence": 0.9
+          },
+          "confidence": 0.95
+        }
+      ]
+    }
+  },
+  "visual_marks": {}
+}
+```
+
+[2026-03-18T12:24:41.755089] --- COMPLETE ---
+Processing for job 3c54d8d8-69eb-4c6e-9d4f-fa9310bbc470 finished successfully.

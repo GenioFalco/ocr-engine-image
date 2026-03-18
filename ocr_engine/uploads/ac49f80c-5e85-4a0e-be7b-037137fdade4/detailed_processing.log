@@ -1,0 +1,424 @@
+
+[2026-03-18T12:29:22.817611] --- INIT ---
+File path: uploads/ac49f80c-5e85-4a0e-be7b-037137fdade4/Акт выполненных работ №320 от 03.09.2025  (поступление) (78817252 v1).PDF
+
+[2026-03-18T12:29:26.074187] --- OCR_START ---
+Running Tesserocr on Page 1 (in memory, 35% crop)
+
+[2026-03-18T12:29:26.080703] --- OCR_TIME ---
+Page 1 processed in 3.20s
+
+[2026-03-18T12:29:26.088745] --- OCR_RESULT ---
+Type: Act | Header True | ['AKT:title']
+Preview:  Акт № 320 от 31 августа 2025 г.  000 "Технология чистоты", ИНН 3327145578, 600021, Владимирская обл...
+
+[2026-03-18T12:29:26.295130] --- OCR_START ---
+Running Tesserocr on Page 2 (in memory, 35% crop)
+
+[2026-03-18T12:29:26.302417] --- OCR_TIME ---
+Page 2 processed in 2.88s
+
+[2026-03-18T12:29:26.308750] --- OCR_RESULT ---
+Type: Invoice-Factura | Header True | ['SF:title']
+Preview:  Счет-фактура № 321  Исправление № = Продавец: 000 "Технология чистотьг  600027, Владимирская обл, г...
+
+[2026-03-18T12:29:26.362007] --- SCHEMA_SELECTION ---
+Selected schema for 'Act': Found
+
+[2026-03-18T12:29:26.373776] --- SCHEMA_SELECTION ---
+Selected schema for 'Invoice-Factura': Found
+
+[2026-03-18T12:29:26.380596] --- PARALLEL_LLM ---
+Starting 2 parallel Qwen extractions (with staggered 1s starts)...
+
+[2026-03-18T12:29:26.387853] --- RENDER_START ---
+[Act] Lazily rendering 1 full pages for LLM (Matrix 2.0)
+
+[2026-03-18T12:29:26.716598] --- RENDER_TIME ---
+Rendered Act_1_page_1.jpg in 0.32s
+
+[2026-03-18T12:29:26.723184] --- EXTRACTION_START ---
+[Act] Sending to Qwen LLM: ['Act_1_page_1.jpg']
+
+[2026-03-18T12:29:27.390927] --- RENDER_START ---
+[Invoice-Factura] Lazily rendering 1 full pages for LLM (Matrix 2.0)
+
+[2026-03-18T12:29:27.778698] --- RENDER_TIME ---
+Rendered Invoice-Factura_2_page_1.jpg in 0.38s
+
+[2026-03-18T12:29:27.788296] --- EXTRACTION_START ---
+[Invoice-Factura] Sending to Qwen LLM: ['Invoice-Factura_2_page_1.jpg']
+
+[2026-03-18T12:29:42.913921] --- EXTRACTION_RESULT ---
+Doc Invoice-Factura Raw LLM Response:
+{
+  "doc_type": "Invoice-Factura",
+  "structured": {
+    "document_title": {
+      "value": null,
+      "confidence": 0
+    },
+    "document_number": {
+      "value": "321",
+      "confidence": 0.95
+    },
+    "document_date": {
+      "value": "31 августа 2025 г.",
+      "confidence": 0.92
+    },
+    "currency": {
+      "value": "RUB",
+      "confidence": 0.88
+    },
+    "seller": {
+      "name": {
+        "value": "ООО 'Технолория чистоты'",
+        "confidence": 0.94
+      },
+      "inn": {
+        "value": "3327145578332701001",
+        "confidence": 0.91
+      },
+      "kpp": {
+        "value": null,
+        "confidence": 0.85
+      },
+      "address": {
+        "value": "600021, Владимирская обл., городской округ город Владимир, Владимир г, Мира ул, дом 2.",
+        "confidence": 0.93
+      }
+    },
+    "buyer": {
+      "name": {
+        "value": "ООО 'Агатна Бэк'",
+        "confidence": 0.90
+      },
+      "inn": {
+        "value": "33080379177609590001",
+        "confidence": 0.89
+      },
+      "kpp": {
+        "value": null,
+        "confidence": 0.84
+      },
+      "address": {
+        "value": "601914, Владимирская обл., Ковров г, Комсомольская ул, дом 11БГ, строение 26",
+        "confidence": 0.92
+      }
+    },
+    "consignor": {
+      "name": {
+        "value": "ООО 'Технолория чистоты'",
+        "confidence": 0.94
+      },
+      "inn": {
+        "value": "3327145578332701001",
+        "confidence": 0.91
+      },
+      "kpp": {
+        "value": null,
+        "confidence": 0.85
+      }
+    },
+    "consignee": {
+      "name": {
+        "value": "ООО 'Агатна Бэк'",
+        "confidence": 0.90
+      },
+      "inn": {
+        "value": "33080379177609590001",
+        "confidence": 0.89
+      },
+      "kpp": {
+        "value": null,
+        "confidence": 0.84
+      }
+    },
+    "basis_document": {
+      "type": {
+        "value": "Договор",
+        "confidence": 0.87
+      },
+      "number": {
+        "value": "№ 320 от 31.08.2025 г.",
+        "confidence": 0.93
+      },
+      "date": {
+        "value": "31.08.2025",
+        "confidence": 0.91
+      }
+    },
+    "amounts": {
+      "subtotal_without_vat": {
+        "value": 23333.33,
+        "confidence": 0.95
+      },
+      "vat_amount": {
+        "value": 4666.67,
+        "confidence": 0.94
+      },
+      "total_with_vat": {
+        "value": 28000.0,
+        "confidence": 0.96
+      }
+    },
+    "items": [
+      {
+        "line_number": {
+          "value": 1,
+          "confidence": 0.97
+        },
+        "name": {
+          "value": "Пыль сухая (поставка отходов бумажных)",
+          "confidence": 0.93
+        },
+        "unit": {
+          "value": "кг",
+          "confidence": 0.91
+        },
+        "quantity": {
+          "value": 11.3,
+          "confidence": 0.96
+        },
+        "price_without_vat": {
+          "value": 2000.0,
+          "confidence": 0.94
+        },
+        "amount_without_vat": {
+          "value": 22600.0,
+          "confidence": 0.95
+        },
+        "vat_rate": {
+          "value": "20%",
+          "confidence": 0.92
+        },
+        "vat_amount": {
+          "value": 4520.0,
+          "confidence": 0.93
+        },
+        "amount_with_vat": {
+          "value": 27120.0,
+          "confidence": 0.94
+        },
+        "code_okpd2": {
+          "value": null,
+          "confidence": 0.85
+        }
+      },
+      {
+        "line_number": {
+          "value": 2,
+          "confidence": 0.97
+        },
+        "name": "Работы по вывозу и утилизации отходов",
+        "unit": "кг",
+        "quantity": 2.0,
+        "price_without_vat": 2000.0,
+        "amount_without_vat": 4000.0,
+        "vat_rate": "20%",
+        "vat_amount": 800.0,
+        "amount_with_vat": 4800.0,
+        "code_okpd2": null
+      }
+    ],
+    "visual_marks": {
+      "seals": [],
+      "signatures": []
+    }
+  },
+  "visual_marks": {
+    "seals": [],
+    "signatures": []
+  }
+}
+
+[2026-03-18T12:29:43.056977] --- EXTRACTION_RESULT ---
+Doc Act Raw LLM Response:
+{
+  "documents": [
+    {
+      "doc_type": "Act",
+      "structured": {
+        "document_title": {
+          "value": "Акт № 320 от 31 августа 2025 г.",
+          "confidence": 0.95
+        },
+        "document_number": {
+          "value": "№ 320",
+          "confidence": 0.92
+        },
+        "document_date": {
+          "value": "31 августа 2025 г.",
+          "confidence": 0.94
+        },
+        "currency": {
+          "value": "руб",
+          "confidence": 0.96
+        },
+        "seller": {
+          "name": {
+            "value": "ООО \"Технология чистоты\"",
+            "confidence": 0.97
+          },
+          "inn": {
+            "value": "3327145578",
+            "confidence": 0.96
+          },
+          "kpp": {
+            "value": "600021",
+            "confidence": 0.95
+          },
+          "address": {
+            "value": "Владимирская обл, городской округ город Владимир, Владимир г, Мира ул, дом 2, офис 4",
+            "confidence": 0.94
+          }
+        },
+        "buyer": {
+          "name": {
+            "value": "ООО \"Аскона-Век\"",
+            "confidence": 0.96
+          },
+          "inn": {
+            "value": "3305037917",
+            "confidence": 0.95
+          },
+          "kpp": {
+            "value": "601914",
+            "confidence": 0.94
+          },
+          "address": {
+            "value": "Владимирская обл, Ковров г, Комсомольская ул, дом 116Г, строение 25, помещение 1,4 этаж, офис 26",
+            "confidence": 0.93
+          }
+        },
+        "amounts": {
+          "subtotal_without_vat": {
+            "value": 28000,
+            "confidence": 0.98
+          },
+          "vat_amount": {
+            "value": 4666.67,
+            "confidence": 0.97
+          },
+          "total_with_vat": {
+            "value": 28000,
+            "confidence": 0.98
+          }
+        },
+        "items": [
+          {
+            "line_number": {
+              "value": 1,
+              "confidence": 0.95
+            },
+            "name": {
+              "value": "Вывоз производственных отходов бункером 8м3 за август 2025 г.",
+              "confidence": 0.94
+            },
+            "unit": {
+              "value": "м3",
+              "confidence": 0.96
+            },
+            "quantity": {
+              "value": 32,
+              "confidence": 0.97
+            },
+            "price_without_vat": {
+              "value": 875,
+              "confidence": 0.95
+            },
+            "amount_without_vat": {
+              "value": 28000,
+              "confidence": 0.96
+            },
+            "vat_rate": {
+              "value": "20%",
+              "confidence": 0.94
+            },
+            "vat_amount": {
+              "value": 4666.67,
+              "confidence": 0.95
+            },
+            "amount_with_vat": {
+              "value": 28000,
+              "confidence": 0.96
+            },
+            "code_okpd2": {
+              "value": null,
+              "confidence": 0.0
+            }
+          }
+        ]
+      },
+      "visual_marks": {
+        "seals": [
+          {
+            "page": 0,
+            "bbox": {
+              "x1": 530,
+              "y1": 775,
+              "x2": 720,
+              "y2": 875
+            },
+            "type": "seal",
+            "text": {
+              "value": "ООО 'АСКОНА-ВЕК' РОССИЙСКАЯ ФЕДЕРАЦИЯ ВЛАДИМИРСКАЯ ОБЛАСТЬ Г. КОВРОВ ДОКУМЕНТОВЫЙ ЦЕНТР",
+              "confidence": 0.93
+            },
+            "confidence": 0.95
+          },
+          {
+            "page": 0,
+            "bbox": {
+              "x1": 180,
+              "y1": 400,
+              "x2": 350,
+              "y2": 480
+            },
+            "type": "seal",
+            "text": {
+              "value": "ООО 'ТЕХНОЛОГИЯ ЧИСТОТЫ' ГЕНЕРАЛЬНЫЙ ДИРЕКТОР РЕВТОВА И.В.",
+              "confidence": 0.92
+            },
+            "confidence": 0.94
+          }
+        ],
+        "signatures": [
+          {
+            "page": 0,
+            "bbox": {
+              "x1": 190,
+              "y1": 820,
+              "x2": 280,
+              "y2": 870
+            },
+            "role": "исполнитель",
+            "name": {
+              "value": "Ревтова И. В.",
+              "confidence": 0.96
+            },
+            "confidence": 0.95
+          },
+          {
+            "page": 0,
+            "bbox": {
+              "x1": 530,
+              "y1": 775,
+              "x2": 620,
+              "y2": 825
+            },
+            "role": "заказчик",
+            "name": {
+              "value": "ООО 'Аскона-Век'",
+              "confidence": 0.94
+            },
+            "confidence": 0.93
+          }
+        ]
+      }
+    }
+  ]
+}
+
+[2026-03-18T12:29:43.107461] --- COMPLETE ---
+Processing for job ac49f80c-5e85-4a0e-be7b-037137fdade4 finished successfully.

@@ -1,0 +1,35 @@
+
+[2026-03-18T12:15:29.054744] --- INIT ---
+File path: uploads/ced001ec-5ca0-4f68-812e-f6b38796c2dd/Акт выполненных работ №72 от 04.09.2025  (поступление) (78846617 v1).PDF
+
+[2026-03-18T12:15:32.453855] --- OCR_START ---
+Running Tesserocr on Page 1 (in memory, 35% crop)
+
+[2026-03-18T12:15:32.463427] --- OCR_TIME ---
+Page 1 processed in 3.29s
+
+[2026-03-18T12:15:32.471949] --- OCR_RESULT ---
+Type: Act | Header True | ['AKT:title']
+Preview:  `Унифицированная форма № КС-2 ` Утверждена постановлением Госкомстата России  (or 11.11.99 Xe 100 ю...
+
+[2026-03-18T12:15:32.544178] --- SCHEMA_SELECTION ---
+Selected schema for 'Act': Found
+
+[2026-03-18T12:15:32.552689] --- PARALLEL_LLM ---
+Starting 1 parallel Qwen extractions (with staggered 1s starts)...
+
+[2026-03-18T12:15:32.567864] --- RENDER_START ---
+[Act] Lazily rendering 1 full pages for LLM (Matrix 2.0)
+
+[2026-03-18T12:15:32.897862] --- RENDER_TIME ---
+Rendered Act_1_page_1.jpg in 0.32s
+
+[2026-03-18T12:15:32.908608] --- EXTRACTION_START ---
+[Act] Sending to Qwen LLM: ['Act_1_page_1.jpg']
+
+[2026-03-18T12:15:35.249933] --- EXTRACTION_RESULT ---
+Doc Act Raw LLM Response:
+Error: Error code: 400 - {'error': {'message': '<400> InternalError.Algo.InvalidParameter: The input messages do not contain elements with the role of user', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_parameter_error'}, 'id': 'chatcmpl-ffc67737-142b-9592-b8a0-13b938cda523', 'request_id': 'ffc67737-142b-9592-b8a0-13b938cda523'}
+
+[2026-03-18T12:15:35.311103] --- COMPLETE ---
+Processing for job ced001ec-5ca0-4f68-812e-f6b38796c2dd finished successfully.

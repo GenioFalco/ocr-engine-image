@@ -1,0 +1,194 @@
+
+[2026-03-18T12:18:05.308796] --- INIT ---
+File path: uploads/9e703679-8159-44ad-9a9b-2d8ca4b3b6f5/Акт выполненных работ №72 от 04.09.2025  (поступление) (78846617 v1).PDF
+
+[2026-03-18T12:18:08.819687] --- OCR_START ---
+Running Tesserocr on Page 1 (in memory, 35% crop)
+
+[2026-03-18T12:18:08.832222] --- OCR_TIME ---
+Page 1 processed in 3.43s
+
+[2026-03-18T12:18:08.844905] --- OCR_RESULT ---
+Type: Act | Header True | ['AKT:title']
+Preview:  `Унифицированная форма № КС-2 ` Утверждена постановлением Госкомстата России  (or 11.11.99 Xe 100 ю...
+
+[2026-03-18T12:18:08.974590] --- SCHEMA_SELECTION ---
+Selected schema for 'Act': Found
+
+[2026-03-18T12:18:08.984691] --- PARALLEL_LLM ---
+Starting 1 parallel Qwen extractions (with staggered 1s starts)...
+
+[2026-03-18T12:18:08.996560] --- RENDER_START ---
+[Act] Lazily rendering 1 full pages for LLM (Matrix 2.0)
+
+[2026-03-18T12:18:09.332404] --- RENDER_TIME ---
+Rendered Act_1_page_1.jpg in 0.32s
+
+[2026-03-18T12:18:09.346869] --- EXTRACTION_START ---
+[Act] Sending to Qwen LLM: ['Act_1_page_1.jpg']
+
+[2026-03-18T12:18:20.283100] --- EXTRACTION_RESULT ---
+Doc Act Raw LLM Response:
+```json
+{
+    "type": "object",
+    "properties": {
+        "documents": [
+            {
+                "doc_type": "Act",
+                "structured": {
+                    "document_title": {
+                        "value": "Унифицированная форма № КС-2",
+                        "confidence": 0.99
+                    },
+                    "document_number": {
+                        "value": "от 11.11.99 № 100",
+                        "confidence": 0.99
+                    },
+                    "document_date": {
+                        "value": "15.07.2025",
+                        "confidence": 0.99
+                    },
+                    "currency": {
+                        "value": "RUB",
+                        "confidence": 0.99
+                    },
+                    "seller": {
+                        "name": {
+                            "value": "ООО \"Аскона-Век\"",
+                            "confidence": 0.99
+                        },
+                        "inn": {
+                            "value": "601914",
+                            "confidence": 0.99
+                        },
+                        "kpp": {
+                            "value": "601914",
+                            "confidence": 0.99
+                        },
+                        "address": {
+                            "value": "ул. Комсомольская, д. 116-Г, стр.25, пом.1, 4 эт., офис 26",
+                            "confidence": 0.99
+                        }
+                    },
+                    "buyer": {
+                        "name": {
+                            "value": "ООО \"Аскона-Век\"",
+                            "confidence": 0.99
+                        },
+                        "inn": {
+                            "value": "601914",
+                            "confidence": 0.99
+                        },
+                        "kpp": {
+                            "value": "601900",
+                            "confidence": 0.99
+                        },
+                        "address": {
+                            "value": "ул. Комсомольская, д. 116-Г, стр.25, пом.1, 4 эт., офис 26",
+                            "confidence": 0.99
+                        }
+                    },
+                    "amounts": {
+                        "subtotal_without_vat": {
+                            "value": "14500",
+                            "confidence": 0.99
+                        },
+                        "vat_amount": {
+                            "value": "25500",
+                            "confidence": 0.99
+                        },
+                        "total_with_vat": {
+                            "value": "40000",
+                            "confidence": 0.99
+                        }
+                    },
+                    "items": [
+                        {
+                            "line_number": 1,
+                            "name": {
+                                "value": "Выполнение работ",
+                                "confidence": 0.99
+                            },
+                            "unit": {
+                                "value": "3",
+                                "confidence": 0.99
+                            },
+                            "quantity": {
+                                "value": 4,
+                                "confidence": 0.99
+                            },
+                            "price_without_vat": {
+                                "value": "3500",
+                                "confidence": 0.99
+                            },
+                            "amount_without_vat": {
+                                "value": "14000",
+                                "confidence": 0.99
+                            },
+                            "vat_rate": {
+                                "value": "18%",
+                                "confidence": 0.99
+                            },
+                            "vat_amount": {
+                                "value": "7000",
+                                "confidence": 0.99
+                            },
+                            "amount_with_vat": {
+                                "value": "21000",
+                                "confidence": 0.99
+                            },
+                            "code_okpd2": {
+                                "value": "0322005",
+                                "confidence": 0.99
+                            }
+                        },
+                        {
+                            "line_number": 2,
+                            "name": {
+                                "value": "Ремонт стеллажного оборудования",
+                                "confidence": 0.99
+                            },
+                            "unit": {
+                                "value": "",
+                                "confidence": 0.99
+                            },
+                            "quantity": {
+                                "value": "",
+                                "confidence": 0.99
+                            },
+                            "price_without_vat": {
+                                "value": "11000",
+                                "confidence": 0.99
+                            },
+                            "amount_without_vat": {
+                                "value": "11000",
+                                "confidence": 0.99
+                            },
+                            "vat_rate": {
+                                "value": "18%",
+                                "confidence": 0.99
+                            },
+                            "vat_amount": {
+                                "value": "1100",
+                                "confidence": 0.99
+                            },
+                            "amount_with_vat": {
+                                "value": "12100",
+                                "confidence": 0.99
+                            },
+                            "code_okpd2": {
+                                "value": "0322005",
+                                "confidence": 0.99
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}
+```
+
+[2026-03-18T12:18:20.344116] --- COMPLETE ---
+Processing for job 9e703679-8159-44ad-9a9b-2d8ca4b3b6f5 finished successfully.
