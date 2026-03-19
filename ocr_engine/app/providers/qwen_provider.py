@@ -21,7 +21,7 @@ class QwenProvider(BaseLLM):
         self.api_key = api_key
         self.model = model
         self.temperature = temperature
-        self.max_tokens = max_tokens
+        self.max_tokens = min(max_tokens, 8192)
         if OpenAI:
             # Pointing the OpenAI client to Qwen's DashScope compatible API (International Region)
             self.client = OpenAI(
