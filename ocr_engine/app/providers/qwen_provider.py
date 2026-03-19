@@ -122,6 +122,7 @@ class QwenProvider(BaseLLM):
    - В полях типа `document_number` (номер документа) пиши ТОЛЬКО сами цифры/буквы номера. Без символа "№", без слова "номер".
    - В ИНН и КПП пиши строго цифры.
    - В массив `items` (список товаров/услуг) добавляй ТОЛЬКО реальные строки с конкретными позициями. КАТЕГОРИЧЕСКИ игнорируй заголовки таблиц, подзаголовки групп (например, "Выполненные работы:", "Товары:") и итоговые строки.
+   - ОГРАНИЧЕНИЕ ДЛИНЫ: Если в документе огромная таблица (более 30 позиций), извлеки ТОЛЬКО ПЕРВЫЕ 30 строк. НЕ извлекай сотни строк, иначе твой ответ оборвется из-за лимита токенов, и JSON будет сломан!
 3. ЗАПРЕЩАЕТСЯ писать "ООО 'Пример'", "123456789" и любые тестовые данные. Если на скане нет реального поля, пиши `null`.
 4. Верни чистый JSON-объект, строго соответствующий схеме. Обязательно соблюдай структуру иерархии.
 5. ВАЖНО: Если в схеме есть поле `raw_text`, ты ОБЯЗАН вернуть его ПУСТЫМ (""). КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО извлекать весь текст документа.
@@ -166,6 +167,24 @@ class QwenProvider(BaseLLM):
                             recovered = json.loads(struct_str[:end_idx])
                             data = recovered
                             logger.warning("Partial JSON recovery succeeded (extracted 'structured' block).")
+                        else:
+                            # Heuristic: try to forcefully close the JSON if depth > 0
+                            fixed_str = struct_str + ("}" * depth)
+                            try:
+                                recovered = json.loads(fixed_str)
+                                data = recovered
+                                logger.warning("Partial JSON recovery succeeded via forced brace closure.")
+                            except Exception as e2:
+                                # Final try: chop off trailing incomplete string before closing braces
+                                clean_str = re.sub(r'"[^"]*$', '', struct_str)
+                                clean_str = re.sub(r'[,:]\s*$', '', clean_str)
+                                fixed_str_2 = clean_str + ("}" * depth) + "]}"
+                                try:
+                                    recovered = json.loads(fixed_str_2)
+                                    data = recovered
+                                    logger.warning("Partial JSON recovery succeeded via aggressive truncation.")
+                                except Exception:
+                                    pass
                 except Exception as rec_e:
                     logger.warning(f"Partial JSON recovery also failed: {rec_e}")
 
