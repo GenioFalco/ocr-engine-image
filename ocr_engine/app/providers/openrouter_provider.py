@@ -121,11 +121,17 @@ class OpenRouterProvider(BaseLLM):
 СХЕМА JSON (JSON Schema):
 {schema_str}
 
-ПРАВИЛА:
-1. Пиши ТОЛЬКО то, что видишь на картинках. Если поля нет - пиши `null`.
-2. Верни чистый JSON-объект, строго соответствующий схеме. Обязательно соблюдай структуру иерархии (не прячь ответ внутрь сторонних полей вроде 'structured').
-3. ВАЖНО: Если в схеме есть поле `raw_text`, ты ОБЯЗАН вернуть его ПУСТЫМ (""). КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО извлекать весь текст документа.
-4. Верни ТОЛЬКО JSON-объект. Больше ни единого слова, без преамбул. Без маркдауна (без ```json).
+ПРАВИЛА НАПИСАНИЯ ОТВЕТА (ОЧЕНЬ ВАЖНО):
+1. ПИШИ ТОЛЬКО ТО, ЧТО ВИДИШЬ СВОИМИ ГЛАЗАМИ НА КАРТИНКАХ. ЗАПРЕЩЕНО ВЫДУМЫВАТЬ ИЛИ ГЕНЕРИРОВАТЬ ПРИМЕРЫ!
+2. ЧИСТОТА ДАННЫХ:
+   - В поле `name` (название) пиши ТОЛЬКО название компании/ИП (без адреса, без реквизитов!). Адрес пиши СТРОГО в поле `address`. Не смешивай их.
+   - В полях типа `document_number` (номер документа) пиши ТОЛЬКО сами цифры/буквы номера. Без символа "№", без слова "номер".
+   - В ИНН и КПП пиши строго цифры.
+   - В массив `items` (список товаров/услуг) добавляй ТОЛЬКО реальные строки с конкретными позициями. КАТЕГОРИЧЕСКИ игнорируй заголовки таблиц, подзаголовки групп (например, "Выполненные работы:", "Товары:") и итоговые строки.
+3. ЗАПРЕЩАЕТСЯ писать "ООО 'Пример'", "123456789" и любые тестовые данные. Если на скане нет реального поля, пиши `null`.
+4. Верни чистый JSON-объект, строго соответствующий схеме. Обязательно соблюдай структуру иерархии (не прячь ответ внутрь сторонних полей).
+5. ВАЖНО: Если в схеме есть поле `raw_text`, ты ОБЯЗАН вернуть его ПУСТЫМ (""). КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО извлекать весь текст документа.
+6. Верни ТОЛЬКО JSON-объект. Больше ни единого слова, без преамбул. Без маркдауна (без ```json).
             """
             
             message_content = self._prepare_image_message(prompt, limited_data)
@@ -179,10 +185,9 @@ class OpenRouterProvider(BaseLLM):
             elif not isinstance(data, dict):
                 data = {}
                 
-            if "structured" in data and isinstance(data["structured"], dict):
-                data = data["structured"]
-            elif "fields" in data and isinstance(data["fields"], dict):
-                data = data["fields"]
+            # Unwrap "documents" array if the LLM wrapped the response
+            if "documents" in data and isinstance(data["documents"], list) and len(data["documents"]) > 0:
+                data = data["documents"][0]
             
             stamps = []
             signatures = []
@@ -194,6 +199,12 @@ class OpenRouterProvider(BaseLLM):
                      
             if not isinstance(stamps, list): stamps = []
             if not isinstance(signatures, list): signatures = []
+
+            # Now unwrap the actual fields
+            if "structured" in data and isinstance(data["structured"], dict):
+                data = data["structured"]
+            elif "fields" in data and isinstance(data["fields"], dict):
+                data = data["fields"]
 
             for s in stamps:
                 if isinstance(s, str):

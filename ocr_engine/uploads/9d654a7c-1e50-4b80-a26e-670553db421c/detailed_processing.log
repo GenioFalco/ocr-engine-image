@@ -1,0 +1,275 @@
+
+[2026-03-19T11:40:15.522133] --- INIT ---
+File path: uploads/9d654a7c-1e50-4b80-a26e-670553db421c/Акт выполненных работ №72 от 04.09.2025  (поступление) (78846617 v1).PDF
+
+[2026-03-19T11:40:19.171539] --- OCR_START ---
+Running Tesserocr on Page 1 (in memory, 35% crop)
+
+[2026-03-19T11:40:19.187318] --- OCR_TIME ---
+Page 1 processed in 3.56s
+
+[2026-03-19T11:40:19.196776] --- OCR_RESULT ---
+Type: Act | Header True | ['AKT:title']
+Preview:  `Унифицированная форма № КС-2 ` Утверждена постановлением Госкомстата России  (or 11.11.99 Xe 100 ю...
+
+[2026-03-19T11:40:19.263861] --- SCHEMA_SELECTION ---
+Selected schema for 'Act': Found
+
+[2026-03-19T11:40:19.275349] --- PARALLEL_LLM ---
+Starting 1 parallel Qwen extractions (with staggered 1s starts)...
+
+[2026-03-19T11:40:19.289413] --- RENDER_START ---
+[Act] Lazily rendering 1 full pages for LLM (Matrix 2.0)
+
+[2026-03-19T11:40:19.624342] --- RENDER_TIME ---
+Rendered Act_1_page_1.jpg in 0.32s
+
+[2026-03-19T11:40:19.636404] --- EXTRACTION_START ---
+[Act] Sending to Qwen LLM: ['Act_1_page_1.jpg']
+
+[2026-03-19T11:40:36.218573] --- EXTRACTION_RESULT ---
+Doc Act Raw LLM Response:
+```json
+{
+  "documents": [
+    {
+      "doc_type": "Act",
+      "structured": {
+        "document_title": {
+          "value": "АКТ О ПРИЕМКЕ ВЫПОЛНЕННЫХ РАБОТ",
+          "confidence": 0.98
+        },
+        "document_number": {
+          "value": "72",
+          "confidence": 0.95
+        },
+        "document_date": {
+          "value": "27.08.2025",
+          "confidence": 0.95
+        },
+        "currency": {
+          "value": null,
+          "confidence": 0.0
+        },
+        "seller": {
+          "name": {
+            "value": "ИП Ольшевская Татьяна Викторовна",
+            "confidence": 0.96
+          },
+          "inn": {
+            "value": "601900",
+            "confidence": 0.95
+          },
+          "kpp": {
+            "value": "330101001",
+            "confidence": 0.95
+          },
+          "address": {
+            "value": "Владимирская обл., г.Ковров, ул. Дегтярёва, д. 164, кв. 108",
+            "confidence": 0.95
+          }
+        },
+        "buyer": {
+          "name": {
+            "value": "ООО \"Аскона-Век\"",
+            "confidence": 0.97
+          },
+          "inn": {
+            "value": "601914",
+            "confidence": 0.95
+          },
+          "kpp": {
+            "value": "330101001",
+            "confidence": 0.95
+          },
+          "address": {
+            "value": "г.Ковров, ул. Комсомольская, д. 116-г, стр.25, пом. 1, 4 эт., офис 26",
+            "confidence": 0.95
+          }
+        },
+        "amounts": {
+          "subtotal_without_vat": {
+            "value": 25500.0,
+            "confidence": 0.95
+          },
+          "vat_amount": {
+            "value": null,
+            "confidence": 0.0
+          },
+          "total_with_vat": {
+            "value": 25500.0,
+            "confidence": 0.95
+          }
+        },
+        "items": [
+          {
+            "line_number": {
+              "value": 1,
+              "confidence": 0.95
+            },
+            "name": {
+              "value": "Выполнение работы",
+              "confidence": 0.95
+            },
+            "unit": {
+              "value": null,
+              "confidence": 0.0
+            },
+            "quantity": {
+              "value": null,
+              "confidence": 0.0
+            },
+            "price_without_vat": {
+              "value": 14500.0,
+              "confidence": 0.95
+            },
+            "amount_without_vat": {
+              "value": 14500.0,
+              "confidence": 0.95
+            },
+            "vat_rate": {
+              "value": null,
+              "confidence": 0.0
+            },
+            "vat_amount": {
+              "value": null,
+              "confidence": 0.0
+            },
+            "amount_with_vat": {
+              "value": 14500.0,
+              "confidence": 0.95
+            },
+            "code_okpd2": {
+              "value": null,
+              "confidence": 0.0
+            }
+          },
+          {
+            "line_number": {
+              "value": 2,
+              "confidence": 0.95
+            },
+            "name": {
+              "value": "Ремонт стелального оборудования",
+              "confidence": 0.95
+            },
+            "unit": {
+              "value": null,
+              "confidence": 0.0
+            },
+            "quantity": {
+              "value": null,
+              "confidence": 0.0
+            },
+            "price_without_vat": {
+              "value": 11000.0,
+              "confidence": 0.95
+            },
+            "amount_without_vat": {
+              "value": 11000.0,
+              "confidence": 0.95
+            },
+            "vat_rate": {
+              "value": null,
+              "confidence": 0.0
+            },
+            "vat_amount": {
+              "value": null,
+              "confidence": 0.0
+            },
+            "amount_with_vat": {
+              "value": 11000.0,
+              "confidence": 0.95
+            },
+            "code_okpd2": {
+              "value": null,
+              "confidence": 0.0
+            }
+          },
+          {
+            "line_number": {
+              "value": 3,
+              "confidence": 0.95
+            },
+            "name": {
+              "value": "Распил стелажей",
+              "confidence": 0.95
+            },
+            "unit": {
+              "value": null,
+              "confidence": 0.0
+            },
+            "quantity": {
+              "value": null,
+              "confidence": 0.0
+            },
+            "price_without_vat": {
+              "value": null,
+              "confidence": 0.0
+            },
+            "amount_without_vat": {
+              "value": 0.0,
+              "confidence": 0.0
+            },
+            "vat_rate": {
+              "value": null,
+              "confidence": 0.0
+            },
+            "vat_amount": {
+              "value": null,
+              "confidence": 0.0
+            },
+            "amount_with_vat": {
+              "value": 0.0,
+              "confidence": 0.0
+            },
+            "code_okpd2": {
+              "value": null,
+              "confidence": 0.0
+            }
+          }
+        ]
+      },
+      "visual_marks": {
+        "seals": [
+          {
+            "page": 1,
+            "bbox": {
+              "x1": 240,
+              "y1": 650,
+              "x2": 450,
+              "y2": 800
+            },
+            "type": "round",
+            "text": {
+              "value": "ОЛЬШЕВСКАЯ Татьяна Викторовна",
+              "confidence": 0.95
+            },
+            "confidence": 0.95
+          }
+        ],
+        "signatures": [
+          {
+            "page": 1,
+            "bbox": {
+              "x1": 300,
+              "y1": 780,
+              "x2": 450,
+              "y2": 840
+            },
+            "role": "Сдала",
+            "name": {
+              "value": "Ольшевская Т.В.",
+              "confidence": 0.95
+            },
+            "confidence": 0.95
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+[2026-03-19T11:40:36.274113] --- COMPLETE ---
+Processing for job 9d654a7c-1e50-4b80-a26e-670553db421c finished successfully.
