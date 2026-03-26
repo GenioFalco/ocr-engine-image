@@ -5,6 +5,16 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 from app.db.base import Base
 
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True)
+    email = Column(String, unique=True, index=True, nullable=True)
+    hashed_password = Column(String)
+    is_active = Column(Boolean, default=True)
+    role = Column(String, default="user") # admin or user
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 class DocumentType(Base):
     __tablename__ = "document_types"
     id = Column(Integer, primary_key=True, index=True)
@@ -45,7 +55,10 @@ class ProcessingJob(Base):
     finished_at = Column(DateTime, nullable=True)
     total_processing_time = Column(Float, nullable=True)
     error_message = Column(Text, nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True) # Nullable so existing jobs don't break
     created_at = Column(DateTime, default=datetime.utcnow)
+    
+    user = relationship("User")
 
 class Document(Base):
     __tablename__ = "documents"

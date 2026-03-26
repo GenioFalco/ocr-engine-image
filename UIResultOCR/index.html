@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR IDP Demo</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <i data-lucide="scan-line"></i>
+                <span>OCR IDP Demo</span>
+            </div>
+            <div class="actions">
+                <!-- Actions removed -->
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+
+            <!-- Upload Area (Initial State) -->
+            <div id="upload-area" class="upload-area">
+                <div class="upload-box">
+                    <i data-lucide="upload-cloud" class="upload-icon"></i>
+                    <h2>Загрузите документ</h2>
+                    <p>Перетащите PDF сюда или нажмите для выбора</p>
+                    <input type="file" id="file-input" accept="application/pdf" hidden>
+                    <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">Выбрать
+                        файл</button>
+                </div>
+            </div>
+
+            <!-- Dashboard (Result State) -->
+            <div id="dashboard" class="dashboard hidden">
+
+                <!-- Left Column: PDF Preview -->
+                <div class="preview-column">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3><i data-lucide="file-text"></i> Предпросмотр</h3>
+                        </div>
+                        <div class="pdf-container" id="pdf-render-container">
+                            <canvas id="pdf-canvas"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Extracted Data -->
+                <div class="data-column">
+
+                    <!-- Status / Meta -->
+                    <div class="status-bar">
+                        <div class="status-left">
+                            <span class="badge" id="doc-type-badge">Тип не определен</span>
+
+                            <!-- Navigation for multiple docs -->
+                            <div id="doc-navigation" class="doc-navigation hidden">
+                                <button class="btn-icon btn-sm" id="btn-prev-doc"><i
+                                        data-lucide="chevron-left"></i></button>
+                                <span id="doc-counter" class="doc-counter">1 / 1</span>
+                                <button class="btn-icon btn-sm" id="btn-next-doc"><i
+                                        data-lucide="chevron-right"></i></button>
+                            </div>
+                        </div>
+
+                        <div class="actions">
+                            <button class="btn btn-sm btn-primary" id="btn-reset">Загрузить другой файл</button>
+                        </div>
+                    </div>
+
+                    <div id="results-container" class="results-container">
+                        <!-- Content will be injected here by JS -->
+                    </div>
+
+                    <!-- Tech / Debug Footer -->
+                    <div class="data-footer">
+                        <button class="btn btn-sm btn-ghost" id="btn-show-raw"><i data-lucide="file-text"></i> Весь
+                            текст</button>
+                        <button class="btn btn-sm btn-ghost" id="btn-show-json"><i data-lucide="code"></i> JSON</button>
+                    </div>
+
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Loader overlay -->
+        <div id="loader" class="loader-overlay hidden">
+            <div class="loader-content">
+                <div class="spinner"></div>
+                <p>Распознавание документа...</p>
+            </div>
+        </div>
+
+        <!-- Modals -->
+        <div id="modal-raw" class="modal hidden">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h3>Raw Text</h3>
+                <pre id="raw-text-content"></pre>
+            </div>
+        </div>
+
+        <div id="modal-json" class="modal hidden">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h3>JSON Response</h3>
+                <pre id="json-content"></pre>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

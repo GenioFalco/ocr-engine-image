@@ -1,33 +1,33 @@
 
-[2026-03-19T11:40:15.522133] --- INIT ---
-File path: uploads/9d654a7c-1e50-4b80-a26e-670553db421c/Акт выполненных работ №72 от 04.09.2025  (поступление) (78846617 v1).PDF
+[2026-03-26T19:41:52.669763] --- INIT ---
+File path: uploads/5de7afa6-834f-4393-a871-c82852a08dee/Акт выполненных работ №72 от 04.09.2025  (поступление) (78846617 v1).PDF
 
-[2026-03-19T11:40:19.171539] --- OCR_START ---
+[2026-03-26T19:41:56.047827] --- OCR_START ---
 Running Tesserocr on Page 1 (in memory, 35% crop)
 
-[2026-03-19T11:40:19.187318] --- OCR_TIME ---
-Page 1 processed in 3.56s
+[2026-03-26T19:41:56.062622] --- OCR_TIME ---
+Page 1 processed in 3.34s
 
-[2026-03-19T11:40:19.196776] --- OCR_RESULT ---
+[2026-03-26T19:41:56.074062] --- OCR_RESULT ---
 Type: Act | Header True | ['AKT:title']
 Preview:  `Унифицированная форма № КС-2 ` Утверждена постановлением Госкомстата России  (or 11.11.99 Xe 100 ю...
 
-[2026-03-19T11:40:19.263861] --- SCHEMA_SELECTION ---
+[2026-03-26T19:41:56.173136] --- SCHEMA_SELECTION ---
 Selected schema for 'Act': Found
 
-[2026-03-19T11:40:19.275349] --- PARALLEL_LLM ---
+[2026-03-26T19:41:56.183270] --- PARALLEL_LLM ---
 Starting 1 parallel Qwen extractions (with staggered 1s starts)...
 
-[2026-03-19T11:40:19.289413] --- RENDER_START ---
+[2026-03-26T19:41:56.197201] --- RENDER_START ---
 [Act] Lazily rendering 1 full pages for LLM (Matrix 2.0)
 
-[2026-03-19T11:40:19.624342] --- RENDER_TIME ---
+[2026-03-26T19:41:56.530943] --- RENDER_TIME ---
 Rendered Act_1_page_1.jpg in 0.32s
 
-[2026-03-19T11:40:19.636404] --- EXTRACTION_START ---
+[2026-03-26T19:41:56.545876] --- EXTRACTION_START ---
 [Act] Sending to Qwen LLM: ['Act_1_page_1.jpg']
 
-[2026-03-19T11:40:36.218573] --- EXTRACTION_RESULT ---
+[2026-03-26T19:42:13.645569] --- EXTRACTION_RESULT ---
 Doc Act Raw LLM Response:
 ```json
 {
@@ -48,43 +48,43 @@ Doc Act Raw LLM Response:
           "confidence": 0.95
         },
         "currency": {
-          "value": null,
-          "confidence": 0.0
+          "value": "руб.",
+          "confidence": 0.9
         },
         "seller": {
           "name": {
             "value": "ИП Ольшевская Татьяна Викторовна",
-            "confidence": 0.96
+            "confidence": 0.95
           },
           "inn": {
             "value": "601900",
-            "confidence": 0.95
+            "confidence": 0.9
           },
           "kpp": {
-            "value": "330101001",
-            "confidence": 0.95
+            "value": "331401001",
+            "confidence": 0.85
           },
           "address": {
-            "value": "Владимирская обл., г.Ковров, ул. Дегтярёва, д. 164, кв. 108",
-            "confidence": 0.95
+            "value": "г. Ковров, ул. Дегтярёва, д. 164, кв. 108",
+            "confidence": 0.9
           }
         },
         "buyer": {
           "name": {
             "value": "ООО \"Аскона-Век\"",
-            "confidence": 0.97
+            "confidence": 0.98
           },
           "inn": {
             "value": "601914",
-            "confidence": 0.95
+            "confidence": 0.9
           },
           "kpp": {
-            "value": "330101001",
-            "confidence": 0.95
+            "value": "331401001",
+            "confidence": 0.85
           },
           "address": {
-            "value": "г.Ковров, ул. Комсомольская, д. 116-г, стр.25, пом. 1, 4 эт., офис 26",
-            "confidence": 0.95
+            "value": "г. Ковров, ул. Комсомольская, д. 116-г, стр. 25, пом. 1, 4 эт., офис 26",
+            "confidence": 0.9
           }
         },
         "amounts": {
@@ -94,7 +94,7 @@ Doc Act Raw LLM Response:
           },
           "vat_amount": {
             "value": null,
-            "confidence": 0.0
+            "confidence": 0.1
           },
           "total_with_vat": {
             "value": 25500.0,
@@ -105,7 +105,7 @@ Doc Act Raw LLM Response:
           {
             "line_number": {
               "value": 1,
-              "confidence": 0.95
+              "confidence": 0.98
             },
             "name": {
               "value": "Выполнение работы",
@@ -113,11 +113,11 @@ Doc Act Raw LLM Response:
             },
             "unit": {
               "value": null,
-              "confidence": 0.0
+              "confidence": 0.1
             },
             "quantity": {
               "value": null,
-              "confidence": 0.0
+              "confidence": 0.1
             },
             "price_without_vat": {
               "value": 14500.0,
@@ -129,11 +129,11 @@ Doc Act Raw LLM Response:
             },
             "vat_rate": {
               "value": null,
-              "confidence": 0.0
+              "confidence": 0.1
             },
             "vat_amount": {
               "value": null,
-              "confidence": 0.0
+              "confidence": 0.1
             },
             "amount_with_vat": {
               "value": 14500.0,
@@ -141,13 +141,13 @@ Doc Act Raw LLM Response:
             },
             "code_okpd2": {
               "value": null,
-              "confidence": 0.0
+              "confidence": 0.1
             }
           },
           {
             "line_number": {
               "value": 2,
-              "confidence": 0.95
+              "confidence": 0.98
             },
             "name": {
               "value": "Ремонт стелального оборудования",
@@ -155,11 +155,11 @@ Doc Act Raw LLM Response:
             },
             "unit": {
               "value": null,
-              "confidence": 0.0
+              "confidence": 0.1
             },
             "quantity": {
               "value": null,
-              "confidence": 0.0
+              "confidence": 0.1
             },
             "price_without_vat": {
               "value": 11000.0,
@@ -171,11 +171,11 @@ Doc Act Raw LLM Response:
             },
             "vat_rate": {
               "value": null,
-              "confidence": 0.0
+              "confidence": 0.1
             },
             "vat_amount": {
               "value": null,
-              "confidence": 0.0
+              "confidence": 0.1
             },
             "amount_with_vat": {
               "value": 11000.0,
@@ -183,13 +183,13 @@ Doc Act Raw LLM Response:
             },
             "code_okpd2": {
               "value": null,
-              "confidence": 0.0
+              "confidence": 0.1
             }
           },
           {
             "line_number": {
               "value": 3,
-              "confidence": 0.95
+              "confidence": 0.98
             },
             "name": {
               "value": "Распил стелажей",
@@ -197,35 +197,35 @@ Doc Act Raw LLM Response:
             },
             "unit": {
               "value": null,
-              "confidence": 0.0
+              "confidence": 0.1
             },
             "quantity": {
               "value": null,
-              "confidence": 0.0
+              "confidence": 0.1
             },
             "price_without_vat": {
               "value": null,
-              "confidence": 0.0
+              "confidence": 0.1
             },
             "amount_without_vat": {
-              "value": 0.0,
-              "confidence": 0.0
+              "value": null,
+              "confidence": 0.1
             },
             "vat_rate": {
               "value": null,
-              "confidence": 0.0
+              "confidence": 0.1
             },
             "vat_amount": {
               "value": null,
-              "confidence": 0.0
+              "confidence": 0.1
             },
             "amount_with_vat": {
-              "value": 0.0,
-              "confidence": 0.0
+              "value": null,
+              "confidence": 0.1
             },
             "code_okpd2": {
               "value": null,
-              "confidence": 0.0
+              "confidence": 0.1
             }
           }
         ]
@@ -237,13 +237,13 @@ Doc Act Raw LLM Response:
             "bbox": {
               "x1": 240,
               "y1": 650,
-              "x2": 450,
+              "x2": 440,
               "y2": 800
             },
             "type": "round",
             "text": {
-              "value": "ОЛЬШЕВСКАЯ Татьяна Викторовна",
-              "confidence": 0.95
+              "value": "ОЛЬШЕВСКАЯ ТАНЬЯНА ВИКТОРОВНА",
+              "confidence": 0.9
             },
             "confidence": 0.95
           }
@@ -252,10 +252,10 @@ Doc Act Raw LLM Response:
           {
             "page": 1,
             "bbox": {
-              "x1": 300,
-              "y1": 780,
-              "x2": 450,
-              "y2": 840
+              "x1": 450,
+              "y1": 700,
+              "x2": 540,
+              "y2": 730
             },
             "role": "Сдала",
             "name": {
@@ -271,5 +271,5 @@ Doc Act Raw LLM Response:
 }
 ```
 
-[2026-03-19T11:40:36.274113] --- COMPLETE ---
-Processing for job 9d654a7c-1e50-4b80-a26e-670553db421c finished successfully.
+[2026-03-26T19:42:13.696289] --- COMPLETE ---
+Processing for job 5de7afa6-834f-4393-a871-c82852a08dee finished successfully.

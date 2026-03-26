@@ -9,6 +9,8 @@ import uuid
 import os
 import shutil
 from datetime import datetime
+from app.services.auth_service import get_current_user, get_current_admin_user
+from app.models.models import User
 
 router = APIRouter()
 
@@ -29,9 +31,9 @@ def process_job_background(job_id: uuid.UUID, file_path: str):
         db.close()
 
 @router.post("/process")
-async def process_sync(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def process_sync(file: UploadFile = File(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     job_id = uuid.uuid4()
-    job = ProcessingJob(id=job_id, mode="sync", status="processing")
+    job = ProcessingJob(id=job_id, mode="sync", status="processing", user_id=current_user.id)
     db.add(job)
     db.commit()
 
@@ -74,10 +76,11 @@ async def process_sync(file: UploadFile = File(...), db: Session = Depends(get_d
 async def process_async(
     background_tasks: BackgroundTasks, 
     file: UploadFile = File(...), 
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     job_id = uuid.uuid4()
-    job = ProcessingJob(id=job_id, mode="async", status="pending")
+    job = ProcessingJob(id=job_id, mode="async", status="pending", user_id=current_user.id)
     db.add(job)
     db.commit()
     
@@ -89,10 +92,13 @@ async def process_async(
     return {"job_id": str(job_id), "status": "pending"}
 
 @router.get("/result/{job_id}")
-async def get_result(job_id: uuid.UUID, db: Session = Depends(get_db)):
+async def get_result(job_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     job = db.query(ProcessingJob).filter(ProcessingJob.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+        
+    if job.user_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized to view this job")
         
     if job.status == "done":
          # Fetch results similar to sync
@@ -109,12 +115,75 @@ async def get_result(job_id: uuid.UUID, db: Session = Depends(get_db)):
         
     return {"status": job.status, "error": job.error_message}
 
+from fastapi.responses import FileResponse
+from typing import Optional
+import jwt
+
+@router.get("/preview/{job_id}")
+async def get_preview(
+    job_id: uuid.UUID, 
+    token: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    job = db.query(ProcessingJob).filter(ProcessingJob.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+        
+    current_user = None
+    if token:
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            username = payload.get("sub")
+            if username:
+                current_user = db.query(User).filter(User.username == username).first()
+        except Exception:
+            pass
+            
+    if not current_user:
+        raise HTTPException(status_code=403, detail="Not authenticated")
+        
+    if job.user_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized to view this file")
+        
+    upload_dir = os.path.join(settings.UPLOAD_DIR, str(job_id))
+    if not os.path.exists(upload_dir):
+        raise HTTPException(status_code=404, detail="File directory not found")
+        
+    all_files = os.listdir(upload_dir)
+    if not all_files:
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    # Prefer PDF files; fall back to first file if no PDF found
+    pdf_files = [f for f in all_files if f.lower().endswith('.pdf')]
+    chosen_file = pdf_files[0] if pdf_files else all_files[0]
+        
+    file_path = os.path.join(upload_dir, chosen_file)
+    return FileResponse(file_path, media_type="application/pdf")
+
+@router.get("/jobs")
+async def get_user_jobs(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Fetch all jobs for the currently authenticated user."""
+    jobs = db.query(ProcessingJob).filter(ProcessingJob.user_id == current_user.id).order_by(ProcessingJob.created_at.desc()).all()
+    return [{"id": j.id, "mode": j.mode, "status": j.status, "created_at": j.created_at, "error_message": j.error_message} for j in jobs]
+
+@router.get("/admin/jobs")
+async def get_all_jobs(db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
+    """Fetch all jobs across all users (Admin only)."""
+    jobs = db.query(ProcessingJob).order_by(ProcessingJob.created_at.desc()).all()
+    return [{"id": j.id, "user_id": j.user_id, "mode": j.mode, "status": j.status, "created_at": j.created_at, "error_message": j.error_message} for j in jobs]
+
 # --- Management API ---
 from app.schemas.admin import DocumentTypeCreate, ContractCreate, ModelCreate
 from app.models.models import DocumentType, Contract, Model
 
+@router.get("/admin/users")
+def get_all_users(db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
+    """Fetch all registered users (Admin only)."""
+    users = db.query(User).order_by(User.id.desc()).all()
+    return [{"id": u.id, "username": u.username, "email": u.email, "role": u.role, "is_active": u.is_active} for u in users]
+
 @router.post("/admin/models")
-def add_model(model_data: ModelCreate, db: Session = Depends(get_db)):
+def add_model(model_data: ModelCreate, db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
     existing = db.query(Model).filter(Model.name == model_data.name).first()
     if existing:
         raise HTTPException(status_code=400, detail="Model name already exists")
@@ -138,7 +207,7 @@ def add_model(model_data: ModelCreate, db: Session = Depends(get_db)):
     return {"status": "created", "id": new_model.id, "name": new_model.name}
 
 @router.get("/admin/models")
-def list_models(db: Session = Depends(get_db)):
+def list_models(db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
     models = db.query(Model).all()
     return [{
         "id": m.id,
@@ -150,7 +219,7 @@ def list_models(db: Session = Depends(get_db)):
     } for m in models]
 
 @router.delete("/admin/models/{model_id}")
-def delete_model(model_id: int, db: Session = Depends(get_db)):
+def delete_model(model_id: int, db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
     model = db.query(Model).filter(Model.id == model_id).first()
     if not model:
         raise HTTPException(status_code=404, detail="Model not found")
@@ -160,7 +229,7 @@ def delete_model(model_id: int, db: Session = Depends(get_db)):
     return {"status": "deleted", "id": model_id}
 
 @router.post("/admin/models/{model_id}/activate")
-def activate_model(model_id: int, db: Session = Depends(get_db)):
+def activate_model(model_id: int, db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
     model = db.query(Model).filter(Model.id == model_id).first()
     if not model:
         raise HTTPException(status_code=404, detail="Model not found")
@@ -174,7 +243,7 @@ def activate_model(model_id: int, db: Session = Depends(get_db)):
     return {"status": "success", "active_model": model.name}
 
 @router.post("/admin/document_types")
-def create_document_type(doc_type: DocumentTypeCreate, db: Session = Depends(get_db)):
+def create_document_type(doc_type: DocumentTypeCreate, db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
     existing = db.query(DocumentType).filter(DocumentType.name == doc_type.name).first()
     if existing:
         raise HTTPException(status_code=400, detail="Document type already exists")
@@ -186,7 +255,7 @@ def create_document_type(doc_type: DocumentTypeCreate, db: Session = Depends(get
     return new_type
 
 @router.delete("/admin/document_types/{doc_type_id}")
-def delete_document_type(doc_type_id: int, db: Session = Depends(get_db)):
+def delete_document_type(doc_type_id: int, db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
     doc_type = db.query(DocumentType).filter(DocumentType.id == doc_type_id).first()
     if not doc_type:
         raise HTTPException(status_code=404, detail="Document type not found")
@@ -206,7 +275,7 @@ def list_document_types(db: Session = Depends(get_db)):
     return [{"id": dt.id, "name": dt.name, "description": dt.description, "is_active": dt.is_active} for dt in doc_types]
 
 @router.post("/admin/contracts")
-def create_contract(contract: ContractCreate, db: Session = Depends(get_db)):
+def create_contract(contract: ContractCreate, db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
     doc_type = db.query(DocumentType).filter(DocumentType.name == contract.document_type_name).first()
     if not doc_type:
         raise HTTPException(status_code=404, detail="Document type not found")
@@ -221,7 +290,7 @@ def create_contract(contract: ContractCreate, db: Session = Depends(get_db)):
     return {"status": "created", "id": new_contract.id}
 
 @router.get("/admin/contracts")
-def list_contracts(db: Session = Depends(get_db)):
+def list_contracts(db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
     contracts = db.query(Contract).all()
     result = []
     for c in contracts:
@@ -234,7 +303,7 @@ def list_contracts(db: Session = Depends(get_db)):
     return result
 
 @router.delete("/admin/contracts/{contract_id}")
-def delete_contract(contract_id: int, db: Session = Depends(get_db)):
+def delete_contract(contract_id: int, db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
     contract = db.query(Contract).filter(Contract.id == contract_id).first()
     if not contract:
         raise HTTPException(status_code=404, detail="Contract not found")
@@ -244,7 +313,7 @@ def delete_contract(contract_id: int, db: Session = Depends(get_db)):
     return {"status": "deleted", "id": contract_id}
 
 @router.post("/admin/init")
-def init_defaults(db: Session = Depends(get_db)):
+def init_defaults(db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
     defaults = ["Invoice", "Act", "UPD", "Contract"]
     created = []
     for name in defaults:

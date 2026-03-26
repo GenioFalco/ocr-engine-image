@@ -1,33 +1,33 @@
 
-[2026-03-19T09:03:25.438063] --- INIT ---
-File path: uploads/8e69ae05-70aa-479f-b8ed-14cbdb0f4d46/Акт выполненных работ №72 от 04.09.2025  (поступление) (78846617 v1).PDF
+[2026-03-26T19:07:08.573254] --- INIT ---
+File path: uploads/b5c8b6fa-a3c0-458d-9748-f2dc6ffe3260/Акт выполненных работ №72 от 04.09.2025  (поступление) (78846617 v1).PDF
 
-[2026-03-19T09:03:28.763043] --- OCR_START ---
+[2026-03-26T19:07:12.170966] --- OCR_START ---
 Running Tesserocr on Page 1 (in memory, 35% crop)
 
-[2026-03-19T09:03:28.778394] --- OCR_TIME ---
-Page 1 processed in 3.24s
+[2026-03-26T19:07:12.186685] --- OCR_TIME ---
+Page 1 processed in 3.52s
 
-[2026-03-19T09:03:28.786859] --- OCR_RESULT ---
+[2026-03-26T19:07:12.196273] --- OCR_RESULT ---
 Type: Act | Header True | ['AKT:title']
 Preview:  `Унифицированная форма № КС-2 ` Утверждена постановлением Госкомстата России  (or 11.11.99 Xe 100 ю...
 
-[2026-03-19T09:03:28.856406] --- SCHEMA_SELECTION ---
+[2026-03-26T19:07:12.262667] --- SCHEMA_SELECTION ---
 Selected schema for 'Act': Found
 
-[2026-03-19T09:03:28.866357] --- PARALLEL_LLM ---
+[2026-03-26T19:07:12.274379] --- PARALLEL_LLM ---
 Starting 1 parallel Qwen extractions (with staggered 1s starts)...
 
-[2026-03-19T09:03:28.876712] --- RENDER_START ---
+[2026-03-26T19:07:12.288197] --- RENDER_START ---
 [Act] Lazily rendering 1 full pages for LLM (Matrix 2.0)
 
-[2026-03-19T09:03:29.231243] --- RENDER_TIME ---
-Rendered Act_1_page_1.jpg in 0.34s
+[2026-03-26T19:07:12.659522] --- RENDER_TIME ---
+Rendered Act_1_page_1.jpg in 0.35s
 
-[2026-03-19T09:03:29.241665] --- EXTRACTION_START ---
+[2026-03-26T19:07:12.676965] --- EXTRACTION_START ---
 [Act] Sending to Qwen LLM: ['Act_1_page_1.jpg']
 
-[2026-03-19T09:03:46.756357] --- EXTRACTION_RESULT ---
+[2026-03-26T19:07:33.114901] --- EXTRACTION_RESULT ---
 Doc Act Raw LLM Response:
 ```json
 {
@@ -37,54 +37,54 @@ Doc Act Raw LLM Response:
       "structured": {
         "document_title": {
           "value": "АКТ О ПРИЕМКЕ ВЫПОЛНЕННЫХ РАБОТ",
-          "confidence": 0.95
+          "confidence": 0.98
         },
         "document_number": {
           "value": "72",
-          "confidence": 0.98
+          "confidence": 0.95
         },
         "document_date": {
           "value": "27.08.2025",
-          "confidence": 0.98
+          "confidence": 0.95
         },
         "currency": {
           "value": "руб.",
-          "confidence": 0.95
+          "confidence": 0.9
         },
         "seller": {
           "name": {
-            "value": "ООО \"Аскона-Век\", г.Ковров, ул.Комсомольская 116",
+            "value": "ИП Ольшевская Татьяна Викторовна",
             "confidence": 0.95
           },
           "inn": {
-            "value": null,
-            "confidence": 0.0
+            "value": "601900",
+            "confidence": 0.9
           },
           "kpp": {
             "value": null,
             "confidence": 0.0
           },
           "address": {
-            "value": "г.Ковров, ул.Комсомольская 116",
-            "confidence": 0.95
+            "value": "г. Ковров, ул. Дегтярёва, д. 164, кв. 108",
+            "confidence": 0.9
           }
         },
         "buyer": {
           "name": {
-            "value": "ООО \"Аскона-Век\", 601914, г.Ковров, ул.Комсомольская, д.116-г, стр.25, пом.1, 4 эт., офис 26",
-            "confidence": 0.95
+            "value": "ООО \"Аскона-Век\"",
+            "confidence": 0.98
           },
           "inn": {
             "value": "601914",
-            "confidence": 0.95
+            "confidence": 0.9
           },
           "kpp": {
             "value": null,
             "confidence": 0.0
           },
           "address": {
-            "value": "601914, Владимирская обл., г.Ковров, ул.Дегтярёва, д.164, кв.108",
-            "confidence": 0.95
+            "value": "г. Ковров, ул. Комсомольская, д. 116-г, стр. 25, пом. 1, 4 эт., офис 26",
+            "confidence": 0.9
           }
         },
         "amounts": {
@@ -105,7 +105,7 @@ Doc Act Raw LLM Response:
           {
             "line_number": {
               "value": 1,
-              "confidence": 0.95
+              "confidence": 0.98
             },
             "name": {
               "value": "Выполнение работы",
@@ -147,7 +147,7 @@ Doc Act Raw LLM Response:
           {
             "line_number": {
               "value": 2,
-              "confidence": 0.95
+              "confidence": 0.98
             },
             "name": {
               "value": "Ремонт стелального оборудования",
@@ -189,7 +189,7 @@ Doc Act Raw LLM Response:
           {
             "line_number": {
               "value": 3,
-              "confidence": 0.95
+              "confidence": 0.98
             },
             "name": {
               "value": "Распил стелажей",
@@ -242,8 +242,8 @@ Doc Act Raw LLM Response:
             },
             "type": "round",
             "text": {
-              "value": "Ольшевская Т.В.",
-              "confidence": 0.95
+              "value": "ОЛЬШЕВСКАЯ Татьяна Викторовна",
+              "confidence": 0.9
             },
             "confidence": 0.95
           }
@@ -254,8 +254,8 @@ Doc Act Raw LLM Response:
             "bbox": {
               "x1": 300,
               "y1": 780,
-              "x2": 450,
-              "y2": 850
+              "x2": 480,
+              "y2": 840
             },
             "role": "Сдала",
             "name": {
@@ -271,5 +271,5 @@ Doc Act Raw LLM Response:
 }
 ```
 
-[2026-03-19T09:03:46.831041] --- COMPLETE ---
-Processing for job 8e69ae05-70aa-479f-b8ed-14cbdb0f4d46 finished successfully.
+[2026-03-26T19:07:33.169565] --- COMPLETE ---
+Processing for job b5c8b6fa-a3c0-458d-9748-f2dc6ffe3260 finished successfully.

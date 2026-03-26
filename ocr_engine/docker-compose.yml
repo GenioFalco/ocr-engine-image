@@ -30,6 +30,21 @@ services:
     networks:
       - ocr_net
 
+  frontend:
+    image: dockerhub.timeweb.cloud/library/node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    depends_on:
+      - ocr_engine
+    networks:
+      - ocr_net
+
 networks:
   ocr_net:
     driver: bridge

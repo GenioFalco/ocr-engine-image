@@ -16,3 +16,7 @@ tesserocr
 pdf2image
 PyMuPDF
 openai
+passlib
+bcrypt==4.0.1
+PyJWT
+email-validator
