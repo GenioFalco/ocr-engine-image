@@ -1,0 +1,28 @@
+
+[2026-03-27T07:25:39.755681] --- INIT ---
+File path: uploads/f54e555f-e8f5-4129-959a-fc758faaf076/Акт выполненных работ №72 от 04.09.2025  (поступление) (78846617 v1).PDF
+
+[2026-03-27T07:25:43.550983] --- OCR_START ---
+Running Tesserocr on Page 1 (in memory, 35% crop)
+
+[2026-03-27T07:25:43.565762] --- OCR_TIME ---
+Page 1 processed in 3.71s
+
+[2026-03-27T07:25:43.576758] --- OCR_RESULT ---
+Type: Act | Header True | ['AKT:title']
+Preview:  `Унифицированная форма № КС-2 ` Утверждена постановлением Госкомстата России  (or 11.11.99 Xe 100 ю...
+
+[2026-03-27T07:25:43.646388] --- SCHEMA_SELECTION ---
+Selected schema for 'Act': Found
+
+[2026-03-27T07:25:43.657168] --- PARALLEL_LLM ---
+Starting 1 parallel Qwen extractions (with staggered 1s starts)...
+
+[2026-03-27T07:25:43.667596] --- RENDER_START ---
+[Act] Lazily rendering 1 full pages for LLM (Matrix 2.0)
+
+[2026-03-27T07:25:44.022354] --- RENDER_TIME ---
+Rendered Act_1_page_1.jpg in 0.34s
+
+[2026-03-27T07:25:44.035627] --- EXTRACTION_START ---
+[Act] Sending to Qwen LLM: ['Act_1_page_1.jpg']
