@@ -4,6 +4,7 @@ from app.api.routes import router as api_router
 from app.api.auth import router as auth_router
 from app.db.base import engine, Base
 from app.config.settings import settings
+import app.models.models  # noqa: F401 — ensure all tables are registered with Base before create_all
 
 # Create DB tables (In prod, use Alembic)
 Base.metadata.create_all(bind=engine)

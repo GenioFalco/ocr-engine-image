@@ -8,6 +8,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+    role: Optional[str] = 'user'  # 'user' or 'robot'
 
 class UserResponse(UserBase):
     id: int

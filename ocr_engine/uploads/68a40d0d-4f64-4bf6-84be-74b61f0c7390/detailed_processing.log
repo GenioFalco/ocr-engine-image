@@ -1,0 +1,279 @@
+
+[2026-03-31T13:51:51.548208] --- INIT ---
+File path: uploads/68a40d0d-4f64-4bf6-84be-74b61f0c7390/aТ10-09-25-77-40-712527,10.pdf
+
+[2026-03-31T13:51:56.064981] --- ORIENTATION ---
+OSD detected incorrect orientation. Auto-rotating page 1 by 180 degrees.
+
+[2026-03-31T13:51:56.073957] --- OCR_START ---
+Running Tesserocr on Page 1 (in memory, 35% crop)
+
+[2026-03-31T13:51:56.089978] --- OCR_TIME ---
+Page 1 processed in 4.45s
+
+[2026-03-31T13:51:56.104041] --- OCR_RESULT ---
+Type: Invoice-Factura | Header True | ['SF:title']
+Preview:  Универсальный | Счет-фактура № 77-40 от  передаточный Исправление № — от документ SS  Продавец: ИП ...
+
+[2026-03-31T13:51:56.115393] --- ORIENTATION ---
+OSD detected incorrect orientation. Auto-rotating page 2 by 270 degrees.
+
+[2026-03-31T13:51:56.126280] --- OCR_START ---
+Running Tesserocr on Page 2 (in memory, 35% crop)
+
+[2026-03-31T13:51:56.138201] --- OCR_TIME ---
+Page 2 processed in 1.44s
+
+[2026-03-31T13:51:56.149652] --- OCR_RESULT ---
+Type: unknown | Header False | ['no-hit']
+Preview:  ...
+
+[2026-03-31T13:51:56.244031] --- SCHEMA_SELECTION ---
+Selected schema for 'Invoice-Factura': Found
+
+[2026-03-31T13:51:56.255815] --- PARALLEL_LLM ---
+Starting 1 parallel Qwen extractions (with staggered 1s starts)...
+
+[2026-03-31T13:51:56.269264] --- RENDER_START ---
+[Invoice-Factura] Lazily rendering 2 full pages for LLM (Matrix 2.0)
+
+[2026-03-31T13:51:56.819703] --- RENDER_TIME ---
+Rendered Invoice-Factura_1_page_1.jpg in 0.44s
+
+[2026-03-31T13:51:57.152696] --- RENDER_TIME ---
+Rendered Invoice-Factura_1_page_2.jpg in 0.31s
+
+[2026-03-31T13:51:57.166115] --- EXTRACTION_START ---
+[Invoice-Factura] Sending to Qwen LLM: ['Invoice-Factura_1_page_1.jpg', 'Invoice-Factura_1_page_2.jpg']
+
+[2026-03-31T13:52:20.147959] --- EXTRACTION_RESULT ---
+Doc Invoice-Factura Raw LLM Response:
+```json
+{
+  "doc_type": "Invoice-Factura",
+  "structured": {
+    "document_title": {
+      "value": "Счет-фактура",
+      "confidence": 0.98
+    },
+    "document_number": {
+      "value": "77-40",
+      "confidence": 0.95
+    },
+    "document_date": {
+      "value": "05 сентября 2025 г.",
+      "confidence": 0.96
+    },
+    "currency": {
+      "value": "Российский рубль",
+      "confidence": 0.97
+    },
+    "seller": {
+      "name": {
+        "value": "ИП Иванов В.А.",
+        "confidence": 0.95
+      },
+      "inn": {
+        "value": "672039",
+        "confidence": 0.98
+      },
+      "kpp": {
+        "value": "753604922702",
+        "confidence": 0.97
+      },
+      "address": {
+        "value": "Забайкальский край, Загошьенский район, село Ленина, Дом 55",
+        "confidence": 0.94
+      }
+    },
+    "buyer": {
+      "name": {
+        "value": "ООО ТД \"АСКОНА\"",
+        "confidence": 0.96
+      },
+      "inn": {
+        "value": "601914",
+        "confidence": 0.98
+      },
+      "kpp": {
+        "value": "3305051742330501001",
+        "confidence": 0.97
+      },
+      "address": {
+        "value": "Владимирская область, ул. Комсомольская, дом 11Бг, строение 25, помещение 1, этаж 4, офис 26",
+        "confidence": 0.95
+      }
+    },
+    "consignor": {
+      "name": {
+        "value": "ООО ТД \"АСКОНА\"",
+        "confidence": 0.96
+      },
+      "inn": {
+        "value": "601914",
+        "confidence": 0.98
+      },
+      "kpp": {
+        "value": "3305051742330501001",
+        "confidence": 0.97
+      }
+    },
+    "consignee": {
+      "name": {
+        "value": "ООО ТД \"АСКОНА\"",
+        "confidence": 0.96
+      },
+      "inn": {
+        "value": "601914",
+        "confidence": 0.98
+      },
+      "kpp": {
+        "value": "3305051742330501001",
+        "confidence": 0.97
+      }
+    },
+    "basis_document": {
+      "type": {
+        "value": "Государственный контракт",
+        "confidence": 0.95
+      },
+      "number": {
+        "value": "643",
+        "confidence": 0.96
+      },
+      "date": {
+        "value": "25 августа 2025 г.",
+        "confidence": 0.94
+      }
+    },
+    "amounts": {
+      "subtotal_without_vat": {
+        "value": 593772.58,
+        "confidence": 0.97
+      },
+      "vat_amount": {
+        "value": 118754.52,
+        "confidence": 0.96
+      },
+      "total_with_vat": {
+        "value": 712527.10,
+        "confidence": 0.97
+      }
+    },
+    "items": [
+      {
+        "line_number": {
+          "value": 1,
+          "confidence": 0.98
+        },
+        "name": {
+          "value": "Агентские услуги по заключению договоров розничной купли-продажи товара",
+          "confidence": 0.97
+        },
+        "unit": {
+          "value": "услуг",
+          "confidence": 0.95
+        },
+        "quantity": {
+          "value": 1,
+          "confidence": 0.96
+        },
+        "price_without_vat": {
+          "value": 593772.58,
+          "confidence": 0.97
+        },
+        "amount_without_vat": {
+          "value": 593772.58,
+          "confidence": 0.97
+        },
+        "vat_rate": {
+          "value": "20%",
+          "confidence": 0.95
+        },
+        "vat_amount": {
+          "value": 118754.52,
+          "confidence": 0.96
+        },
+        "amount_with_vat": {
+          "value": 712527.10,
+          "confidence": 0.97
+        },
+        "code_okpd2": {
+          "value": "77.00.00.00-00",
+          "confidence": 0.94
+        }
+      }
+    ],
+    "visual_marks": {
+      "seals": [
+        {
+          "page": 1,
+          "bbox": {
+            "x1": 627,
+            "y1": 376,
+            "x2": 834,
+            "y2": 573
+          },
+          "type": "round",
+          "text": {
+            "value": "ООО ТД \"АСКОНА\" ИНН/КПП 3305051742330501001",
+            "confidence": 0.95
+          },
+          "confidence": 0.96
+        },
+        {
+          "page": 2,
+          "bbox": {
+            "x1": 74,
+            "y1": 965,
+            "x2": 217,
+            "y2": 1125
+          },
+          "type": "round",
+          "text": {
+            "value": "ООО ТД \"АСКОНА\" ИНН/КПП 3305051742330501001",
+            "confidence": 0.95
+          },
+          "confidence": 0.96
+        }
+      ],
+      "signatures": [
+        {
+          "page": 1,
+          "bbox": {
+            "x1": 597,
+            "y1": 798,
+            "x2": 660,
+            "y2": 870
+          },
+          "role": "Главный бухгалтер",
+          "name": {
+            "value": "Иванов В.А.",
+            "confidence": 0.95
+          },
+          "confidence": 0.96
+        },
+        {
+          "page": 1,
+          "bbox": {
+            "x1": 745,
+            "y1": 945,
+            "x2": 808,
+            "y2": 1017
+          },
+          "role": "Руководитель организации или иное уполномоченное лицо",
+          "name": {
+            "value": "Иванов В.А.",
+            "confidence": 0.95
+          },
+          "confidence": 0.96
+        }
+      ]
+    }
+  },
+  "visual_marks": {}
+}
+```
+
+[2026-03-31T13:52:20.243530] --- COMPLETE ---
+Processing for job 68a40d0d-4f64-4bf6-84be-74b61f0c7390 finished successfully.

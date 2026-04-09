@@ -24,6 +24,7 @@ const Login = ({ onLogin }) => {
             });
             localStorage.setItem('token', data.access_token);
             localStorage.setItem('role', data.role);
+            localStorage.setItem('username', username);
             onLogin(data.role);
         } catch (err) {
             setError(err.response?.data?.detail || 'Неверный логин или пароль');

@@ -104,3 +104,17 @@ class Log(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     
     job = relationship("ProcessingJob")
+
+class ApiKey(Base):
+    __tablename__ = "api_keys"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    client_id = Column(String, unique=True, index=True, nullable=False)
+    client_secret_hash = Column(String, nullable=False)
+    label = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_used_at = Column(DateTime, nullable=True)
+
+    user = relationship("User")
+

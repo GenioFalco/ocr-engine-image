@@ -1,181 +1,249 @@
-import React, { useState, useEffect } from 'react';
-import api from '../api';
-import { Upload, FileText, Clock, CheckCircle, XCircle, AlertCircle, Eye } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../api';
+import { Upload, X, FileText, CheckCircle, AlertCircle, RefreshCw, Loader2, History, ChevronRight } from 'lucide-react';
+
+const fmt = (bytes) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1048576).toFixed(1)} MB`;
+};
+
+const statusIcon = (s) => {
+    if (s === 'done') return <CheckCircle className="w-4 h-4 text-emerald-500" />;
+    if (s === 'error') return <AlertCircle className="w-4 h-4 text-red-500" />;
+    if (s === 'processing') return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />;
+    return <div className="w-4 h-4 rounded-full border-2 border-slate-300" />;
+};
+
+const statusLabel = { queued: 'Очередь', processing: 'Обработка…', done: 'Готово', error: 'Ошибка' };
 
 const UserDashboard = () => {
-    const [jobs, setJobs] = useState([]);
-    const [file, setFile] = useState(null);
-    const [uploading, setUploading] = useState(false);
-    const [error, setError] = useState('');
     const navigate = useNavigate();
+    const fileInputRef = useRef(null);
+    const [dragOver, setDragOver] = useState(false);
 
-    const fetchJobs = async () => {
-        try {
-            const { data } = await api.get('/jobs');
-            setJobs(data);
-        } catch (err) {
-            console.error('Failed to fetch jobs', err);
-        }
+    // Selected files before upload
+    const [selectedFiles, setSelectedFiles] = useState([]); // [{file, id}]
+
+    // Batch upload state: [{id, name, size, status, jobId, error}]
+    const [batch, setBatch] = useState([]);
+    const [uploading, setUploading] = useState(false);
+
+    // History
+    const [history, setHistory] = useState([]);
+    const [histLoading, setHistLoading] = useState(true);
+
+    const fetchHistory = async () => {
+        setHistLoading(true);
+        try { const { data } = await api.get('/jobs'); setHistory(data); }
+        catch { }
+        finally { setHistLoading(false); }
+    };
+    useEffect(() => { fetchHistory(); }, []);
+
+    // ── File selection ──────────────────────────────────────────────────────
+    const addFiles = (files) => {
+        const newItems = Array.from(files).map(file => ({ id: Math.random().toString(36).slice(2), file }));
+        setSelectedFiles(prev => [...prev, ...newItems]);
     };
 
-    useEffect(() => {
-        fetchJobs();
-    }, []);
+    const removeFile = (id) => setSelectedFiles(prev => prev.filter(f => f.id !== id));
 
-    const handleFileChange = (e) => {
-        if (e.target.files && e.target.files[0]) {
-            setFile(e.target.files[0]);
-        }
+    const onDrop = (e) => {
+        e.preventDefault(); setDragOver(false);
+        addFiles(e.dataTransfer.files);
     };
 
-    const handleUpload = async (e) => {
-        e.preventDefault();
-        if (!file) return;
-
+    // ── Upload all files sequentially ───────────────────────────────────────
+    const handleUpload = async () => {
+        if (!selectedFiles.length) return;
         setUploading(true);
-        setError('');
 
-        const formData = new FormData();
-        formData.append('file', file);
+        // Init batch with queued status
+        const initialBatch = selectedFiles.map(({ id, file }) => ({
+            id, name: file.name, size: file.size, file, status: 'queued', jobId: null, error: null,
+        }));
+        setBatch(initialBatch);
+        setSelectedFiles([]);
 
-        try {
-            // Sync processing blocks until done (for small files / demo)
-            const { data } = await api.post('/process', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
+        const doneJobIds = [];
 
-            setFile(null);
-            await fetchJobs();
+        for (let i = 0; i < initialBatch.length; i++) {
+            const item = initialBatch[i];
 
-            if (data.status === 'success') {
-                navigate(`/result/${data.job_id}`);
+            // Mark as processing
+            setBatch(prev => prev.map(b => b.id === item.id ? { ...b, status: 'processing' } : b));
+
+            try {
+                const formData = new FormData();
+                formData.append('file', item.file);
+                const { data } = await api.post('/process', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+                const jobId = data.job_id;
+                doneJobIds.push(jobId);
+                setBatch(prev => prev.map(b => b.id === item.id ? { ...b, status: 'done', jobId } : b));
+            } catch (err) {
+                const msg = err.response?.data?.detail || 'Ошибка загрузки';
+                setBatch(prev => prev.map(b => b.id === item.id ? { ...b, status: 'error', error: msg } : b));
             }
-        } catch (err) {
-            setError(err.response?.data?.detail || 'Ошибка при загрузке и распознавании файла');
-        } finally {
-            setUploading(false);
+        }
+
+        setUploading(false);
+        fetchHistory();
+
+        // Navigate to batch viewer if at least one succeeded
+        if (doneJobIds.length === 1) {
+            navigate(`/result/${doneJobIds[0]}`);
+        } else if (doneJobIds.length > 1) {
+            navigate(`/batch/${doneJobIds.join(',')}`);
         }
     };
 
-    const StatusIcon = ({ status }) => {
-        switch (status) {
-            case 'done': return <CheckCircle className="w-5 h-5 text-emerald-500" />;
-            case 'failed': return <XCircle className="w-5 h-5 text-red-500" />;
-            case 'processing': return <Clock className="w-5 h-5 text-blue-500 animate-spin" />;
-            default: return <AlertCircle className="w-5 h-5 text-amber-500" />;
-        }
-    };
+    const allDone = batch.length > 0 && batch.every(b => b.status === 'done' || b.status === 'error');
+    const doneIds = batch.filter(b => b.status === 'done').map(b => b.jobId);
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-slate-900">Мои Документы</h1>
-                    <p className="text-slate-500 mt-1">Загрузите новый документ или просмотрите историю распознаваний.</p>
-                </div>
+        <div className="max-w-4xl mx-auto space-y-8">
+            <div>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900">Распознавание документов</h1>
+                <p className="text-slate-400 text-sm mt-1">Загрузите один или несколько PDF-файлов для обработки.</p>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
-                <h2 className="text-lg font-semibold text-slate-800 mb-6 flex items-center gap-2">
-                    <Upload className="w-5 h-5 text-primary" />
-                    Новое распознавание (Синхронно)
-                </h2>
-
-                {error && (
-                    <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-xl border border-red-100 text-sm flex items-center gap-3">
-                        <AlertCircle className="w-5 h-5 shrink-0" />
-                        {error}
-                    </div>
-                )}
-
-                <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
-                    <label className="flex-1 w-full relative h-32 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-xl hover:bg-slate-50 hover:border-primary transition-colors cursor-pointer group bg-slate-50/50">
-                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                            <FileText className="w-8 h-8 text-slate-400 group-hover:text-primary transition-colors mb-2" />
-                            <p className="mb-1 text-sm text-slate-600">
-                                <span className="font-semibold text-primary">Нажмите для выбора</span> или перетащите файл
-                            </p>
-                            <p className="text-xs text-slate-500">PDF, PNG, JPG или TIFF</p>
-                        </div>
-                        <input type="file" className="hidden" onChange={handleFileChange} accept=".pdf,image/*" />
-                    </label>
+            {/* ─── Upload zone ─────────────────────────────────────────── */}
+            {batch.length === 0 && (
+                <div
+                    onClick={() => !uploading && fileInputRef.current.click()}
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={onDrop}
+                    className={`relative border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all
+                        ${dragOver ? 'border-primary bg-sky-50/60 scale-[1.01]' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/40'}`}
+                >
+                    <input ref={fileInputRef} type="file" multiple accept=".pdf,application/pdf"
+                        className="hidden" onChange={e => addFiles(e.target.files)} />
+                    <Upload className={`w-10 h-10 mx-auto mb-3 transition-colors ${dragOver ? 'text-primary' : 'text-slate-300'}`} />
+                    <p className="text-base font-semibold text-slate-700">Перетащите файлы или нажмите для выбора</p>
+                    <p className="text-sm text-slate-400 mt-1">Поддерживается: PDF • Можно выбрать несколько файлов сразу</p>
                 </div>
+            )}
 
-                {file && (
-                    <div className="mt-4 flex items-center justify-between p-4 bg-sky-50 rounded-xl border border-sky-100">
-                        <div className="flex items-center gap-3 overflow-hidden">
-                            <FileText className="w-6 h-6 text-sky-600 shrink-0" />
-                            <span className="text-sm font-medium text-slate-700 truncate">{file.name}</span>
+            {/* ─── Selected files (before upload) ──────────────────────── */}
+            {selectedFiles.length > 0 && (
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                        <p className="text-sm font-semibold text-slate-800">Выбрано файлов: {selectedFiles.length}</p>
+                        <div className="flex items-center gap-2">
+                            <button onClick={() => fileInputRef.current.click()}
+                                className="text-xs text-primary font-medium hover:underline">+ Добавить ещё</button>
                         </div>
-                        <button
-                            onClick={handleUpload}
-                            disabled={uploading}
-                            className="ml-4 px-6 py-2.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-sky-600 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
-                        >
-                            {uploading ? (
-                                <><Clock className="w-4 h-4 animate-spin" /> Распознавание...</>
-                            ) : (
-                                'Начать'
-                            )}
+                    </div>
+                    <ul className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
+                        {selectedFiles.map(({ id, file }) => (
+                            <li key={id} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/40">
+                                <FileText className="w-4 h-4 text-slate-400 shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-slate-800 truncate">{file.name}</p>
+                                    <p className="text-xs text-slate-400">{fmt(file.size)}</p>
+                                </div>
+                                <button onClick={() => removeFile(id)} className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-rose-500 transition-colors">
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                    <div className="px-5 py-4 bg-slate-50/40 border-t border-slate-100 flex items-center gap-3">
+                        <button onClick={handleUpload}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white text-sm font-semibold rounded-xl hover:bg-slate-700 transition-colors shadow-sm">
+                            <Upload className="w-4 h-4" /> Распознать все ({selectedFiles.length})
+                        </button>
+                        <button onClick={() => setSelectedFiles([])} className="text-sm text-slate-400 hover:text-slate-600">Очистить</button>
+                    </div>
+                </div>
+            )}
+
+            {/* ─── Batch progress ───────────────────────────────────────── */}
+            {batch.length > 0 && (
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                        <p className="text-sm font-semibold text-slate-800">
+                            Обработка пакета — {batch.filter(b => b.status === 'done').length}/{batch.length} готово
+                        </p>
+                        {allDone && doneIds.length > 0 && (
+                            <button onClick={() => doneIds.length === 1 ? navigate(`/result/${doneIds[0]}`) : navigate(`/batch/${doneIds.join(',')}`)}
+                                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition-colors">
+                                Открыть результаты <ChevronRight className="w-4 h-4" />
+                            </button>
+                        )}
+                    </div>
+                    <ul className="divide-y divide-slate-50 max-h-80 overflow-y-auto">
+                        {batch.map(item => (
+                            <li key={item.id} className="flex items-center gap-3 px-5 py-3">
+                                {statusIcon(item.status)}
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-slate-800 truncate">{item.name}</p>
+                                    {item.error && <p className="text-xs text-red-500 mt-0.5">{item.error}</p>}
+                                </div>
+                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${item.status === 'done' ? 'bg-emerald-100 text-emerald-700' :
+                                        item.status === 'error' ? 'bg-red-100 text-red-600' :
+                                            item.status === 'processing' ? 'bg-blue-100 text-blue-700' :
+                                                'bg-slate-100 text-slate-500'}`}>
+                                    {statusLabel[item.status]}
+                                </span>
+                                {item.status === 'done' && item.jobId && (
+                                    <button onClick={() => navigate(`/result/${item.jobId}`)}
+                                        className="text-xs text-primary hover:underline ml-2">Открыть</button>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                    {allDone && (
+                        <div className="px-5 py-3 bg-slate-50/40 border-t border-slate-100 flex gap-3">
+                            <button onClick={() => { setBatch([]); fetchHistory(); }}
+                                className="text-sm text-slate-500 hover:text-slate-800 font-medium">← Новый пакет</button>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ─── History ──────────────────────────────────────────────── */}
+            {batch.length === 0 && (
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                        <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                            <History className="w-4 h-4 text-slate-400" /> История заданий
+                        </h2>
+                        <button onClick={fetchHistory} className="text-xs text-slate-400 hover:text-slate-700 flex items-center gap-1">
+                            <RefreshCw className="w-3 h-3" /> Обновить
                         </button>
                     </div>
-                )}
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                <div className="p-6 border-b border-slate-100">
-                    <h2 className="text-lg font-semibold text-slate-800">История документов</h2>
+                    {histLoading ? (
+                        <div className="py-10 flex justify-center"><RefreshCw className="w-5 h-5 text-primary animate-spin" /></div>
+                    ) : history.length === 0 ? (
+                        <p className="py-10 text-center text-slate-400 italic text-sm">Загруженных документов нет</p>
+                    ) : (
+                        <ul className="divide-y divide-slate-50">
+                            {history.map(job => (
+                                <li key={job.id} onClick={() => navigate(`/result/${job.id}`)}
+                                    className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/60 cursor-pointer transition-colors group">
+                                    <FileText className="w-4 h-4 text-slate-300 shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-mono text-slate-500 truncate">{String(job.id).substring(0, 8)}…</p>
+                                        <p className="text-xs text-slate-400">{new Date(job.created_at).toLocaleString('ru-RU')}</p>
+                                    </div>
+                                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${job.status === 'done' ? 'bg-emerald-100 text-emerald-700' :
+                                            job.status === 'error' ? 'bg-red-100 text-red-600' :
+                                                'bg-blue-100 text-blue-700'}`}>
+                                        {statusLabel[job.status] || job.status}
+                                    </span>
+                                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors" />
+                                </li>
+                            ))}
+                        </ul>
+                    )}
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm text-slate-600">
-                        <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase text-xs font-semibold">
-                            <tr>
-                                <th scope="col" className="px-6 py-4">ID / Дата</th>
-                                <th scope="col" className="px-6 py-4 text-center">Статус</th>
-                                <th scope="col" className="px-6 py-4 text-right">Действия</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {jobs.length === 0 ? (
-                                <tr>
-                                    <td colSpan="3" className="px-6 py-8 text-center text-slate-400">
-                                        Вы еще не загрузили ни одного файла.
-                                    </td>
-                                </tr>
-                            ) : (
-                                jobs.map((job) => (
-                                    <tr key={job.id} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="px-6 py-4 font-medium text-slate-900">
-                                            <div className="font-mono text-xs text-slate-400 mb-1">{job.id}</div>
-                                            <div className="text-sm">{new Date(job.created_at).toLocaleString()}</div>
-                                            {job.error_message && (
-                                                <div className="text-xs text-red-500 mt-1 line-clamp-1">{job.error_message}</div>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex justify-center">
-                                                <StatusIcon status={job.status} />
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            {job.status === 'done' && (
-                                                <button
-                                                    onClick={() => navigate(`/result/${job.id}`)}
-                                                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-primary bg-sky-50 rounded-lg hover:bg-sky-100 transition-colors"
-                                                >
-                                                    <Eye className="w-4 h-4" />
-                                                    Результат
-                                                </button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            )}
         </div>
     );
 };

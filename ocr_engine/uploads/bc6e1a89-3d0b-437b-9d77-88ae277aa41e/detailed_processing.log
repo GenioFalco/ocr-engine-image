@@ -1,0 +1,699 @@
+
+[2026-03-31T13:52:20.723884] --- INIT ---
+File path: uploads/bc6e1a89-3d0b-437b-9d77-88ae277aa41e/aТ11-08-25-24-293652,50.pdf
+
+[2026-03-31T13:52:24.544877] --- ORIENTATION ---
+OSD detected incorrect orientation. Auto-rotating page 1 by 180 degrees.
+
+[2026-03-31T13:52:24.554861] --- OCR_START ---
+Running Tesserocr on Page 1 (in memory, 35% crop)
+
+[2026-03-31T13:52:24.565280] --- OCR_TIME ---
+Page 1 processed in 3.72s
+
+[2026-03-31T13:52:24.574995] --- OCR_RESULT ---
+Type: Invoice-Factura | Header True | ['SF:title']
+Preview:  Счет-фактура № 24 от | Исправление № = от | Продавец: 000 "БИЕСА ЮГ Адрес: =  672000, Забайкал  ква...
+
+[2026-03-31T13:52:24.737541] --- ORIENTATION ---
+OSD detected incorrect orientation. Auto-rotating page 2 by 180 degrees.
+
+[2026-03-31T13:52:24.749936] --- OCR_START ---
+Running Tesserocr on Page 2 (in memory, 35% crop)
+
+[2026-03-31T13:52:24.760755] --- OCR_TIME ---
+Page 2 processed in 3.68s
+
+[2026-03-31T13:52:24.774143] --- OCR_RESULT ---
+Type: unknown | Header False | ['no-hit']
+Preview:  000 "Биеса fOr" , именуемое в дальнейшем "Агент", в лице Гене;  Bo исполнение Агентского договора №...
+
+[2026-03-31T13:52:24.860313] --- SCHEMA_SELECTION ---
+Selected schema for 'Invoice-Factura': Found
+
+[2026-03-31T13:52:24.872706] --- PARALLEL_LLM ---
+Starting 1 parallel Qwen extractions (with staggered 1s starts)...
+
+[2026-03-31T13:52:24.883837] --- RENDER_START ---
+[Invoice-Factura] Lazily rendering 2 full pages for LLM (Matrix 2.0)
+
+[2026-03-31T13:52:25.486274] --- RENDER_TIME ---
+Rendered Invoice-Factura_1_page_1.jpg in 0.49s
+
+[2026-03-31T13:52:25.928503] --- RENDER_TIME ---
+Rendered Invoice-Factura_1_page_2.jpg in 0.43s
+
+[2026-03-31T13:52:25.938524] --- EXTRACTION_START ---
+[Invoice-Factura] Sending to Qwen LLM: ['Invoice-Factura_1_page_1.jpg', 'Invoice-Factura_1_page_2.jpg']
+
+[2026-03-31T13:53:20.412694] --- EXTRACTION_RESULT ---
+Doc Invoice-Factura Raw LLM Response:
+```json
+{
+  "doc_type": "Invoice-Factura",
+  "structured": {
+    "document_title": {
+      "value": "Универсальный передаточный документ",
+      "confidence": 0.95
+    },
+    "document_number": {
+      "value": "24",
+      "confidence": 0.98
+    },
+    "document_date": {
+      "value": "08 августа 2025 г.",
+      "confidence": 0.97
+    },
+    "currency": {
+      "value": "Российский рубль",
+      "confidence": 0.96
+    },
+    "seller": {
+      "name": {
+        "value": "ООО \"БИСЕЛА ЮГ\"",
+        "confidence": 0.95
+      },
+      "inn": {
+        "value": "7603081753",
+        "confidence": 0.97
+      },
+      "kpp": {
+        "value": "760301001",
+        "confidence": 0.96
+      },
+      "address": {
+        "value": "Забайкальский край, г.о. Город Чита, ул. Комсомольская дом 118В, строение 25 помещение (1-4)",
+        "confidence": 0.94
+      }
+    },
+    "buyer": {
+      "name": {
+        "value": "ООО ТП \"АСКОНА\"",
+        "confidence": 0.95
+      },
+      "inn": {
+        "value": "6011400017",
+        "confidence": 0.97
+      },
+      "kpp": {
+        "value": "760301001",
+        "confidence": 0.96
+      },
+      "address": {
+        "value": "ул. Комсомольская дом 118В, строение 25 помещение (1-4)",
+        "confidence": 0.94
+      }
+    },
+    "consignor": {
+      "name": {
+        "value": "Пищулина В.А.",
+        "confidence": 0.95
+      },
+      "inn": {
+        "value": null,
+        "confidence": 0.9
+      },
+      "kpp": {
+        "value": null,
+        "confidence": 0.9
+      }
+    },
+    "consignee": {
+      "name": {
+        "value": "Пищулина В.А.",
+        "confidence": 0.95
+      },
+      "inn": {
+        "value": null,
+        "confidence": 0.9
+      },
+      "kpp": {
+        "value": null,
+        "confidence": 0.9
+      }
+    },
+    "basis_document": {
+      "type": {
+        "value": "Агентский договор",
+        "confidence": 0.95
+      },
+      "number": {
+        "value": "№14219/065 от 17.03.2023г.",
+        "confidence": 0.96
+      },
+      "date": {
+        "value": "17.03.2023",
+        "confidence": 0.95
+      }
+    },
+    "amounts": {
+      "subtotal_without_vat": {
+        "value": 451790.0,
+        "confidence": 0.95
+      },
+      "vat_amount": {
+        "value": 90358.0,
+        "confidence": 0.94
+      },
+      "total_with_vat": {
+        "value": 542148.0,
+        "confidence": 0.93
+      }
+    },
+    "items": [
+      {
+        "line_number": {
+          "value": 1,
+          "confidence": 0.98
+        },
+        "name": {
+          "value": "Матр. 200*160 бордовая Mental Bosse",
+          "confidence": 0.95
+        },
+        "unit": {
+          "value": "шт",
+          "confidence": 0.97
+        },
+        "quantity": {
+          "value": 2,
+          "confidence": 0.96
+        },
+        "price_without_vat": {
+          "value": 67850.0,
+          "confidence": 0.95
+        },
+        "amount_without_vat": {
+          "value": 135700.0,
+          "confidence": 0.94
+        },
+        "vat_rate": {
+          "value": "20%",
+          "confidence": 0.95
+        },
+        "vat_amount": {
+          "value": 27140.0,
+          "confidence": 0.94
+        },
+        "amount_with_vat": {
+          "value": 162840.0,
+          "confidence": 0.93
+        },
+        "code_okpd2": {
+          "value": "15.11.11.110",
+          "confidence": 0.9
+        }
+      },
+      {
+        "line_number": {
+          "value": 2,
+          "confidence": 0.98
+        },
+        "name": {
+          "value": "Пеналы 06010000105 Адаптивные Массив",
+          "confidence": 0.95
+        },
+        "unit": {
+          "value": "шт",
+          "confidence": 0.97
+        },
+        "quantity": {
+          "value": 6,
+          "confidence": 0.96
+        },
+        "price_without_vat": {
+          "value": 9889.0,
+          "confidence": 0.95
+        },
+        "amount_without_vat": {
+          "value": 59334.0,
+          "confidence": 0.94
+        },
+        "vat_rate": {
+          "value": "20%",
+          "confidence": 0.95
+        },
+        "vat_amount": {
+          "value": 11866.8,
+          "confidence": 0.94
+        },
+        "amount_with_vat": {
+          "value": 71200.8,
+          "confidence": 0.93
+        },
+        "code_okpd2": {
+          "value": "15.11.11.110",
+          "confidence": 0.9
+        }
+      },
+      {
+        "line_number": {
+          "value": 3,
+          "confidence": 0.98
+        },
+        "name": {
+          "value": "Клипсы CDM 200*160 Black Europe",
+          "confidence": 0.95
+        },
+        "unit": {
+          "value": "шт",
+          "confidence": 0.97
+        },
+        "quantity": {
+          "value": 1,
+          "confidence": 0.96
+        },
+        "price_without_vat": {
+          "value": 42279.0,
+          "confidence": 0.95
+        },
+        "amount_without_vat": {
+          "value": 42279.0,
+          "confidence": 0.94
+        },
+        "vat_rate": {
+          "value": "20%",
+          "confidence": 0.95
+        },
+        "vat_amount": {
+          "value": 8455.8,
+          "confidence": 0.94
+        },
+        "amount_with_vat": {
+          "value": 50734.8,
+          "confidence": 0.93
+        },
+        "code_okpd2": {
+          "value": "15.11.11.110",
+          "confidence": 0.9
+        }
+      },
+      {
+        "line_number": {
+          "value": 4,
+          "confidence": 0.98
+        },
+        "name": {
+          "value": "Клипсы CDM 200*160 Black Europe",
+          "confidence": 0.95
+        },
+        "unit": {
+          "value": "шт",
+          "confidence": 0.97
+        },
+        "quantity": {
+          "value": 1,
+          "confidence": 0.96
+        },
+        "price_without_vat": {
+          "value": 42279.0,
+          "confidence": 0.95
+        },
+        "amount_without_vat": {
+          "value": 42279.0,
+          "confidence": 0.94
+        },
+        "vat_rate": {
+          "value": "20%",
+          "confidence": 0.95
+        },
+        "vat_amount": {
+          "value": 8455.8,
+          "confidence": 0.94
+        },
+        "amount_with_vat": {
+          "value": 50734.8,
+          "confidence": 0.93
+        },
+        "code_okpd2": {
+          "value": "15.11.11.110",
+          "confidence": 0.9
+        }
+      },
+      {
+        "line_number": {
+          "value": 5,
+          "confidence": 0.98
+        },
+        "name": {
+          "value": "Клипсы CDM 200*160 Black Europe",
+          "confidence": 0.95
+        },
+        "unit": {
+          "value": "шт",
+          "confidence": 0.97
+        },
+        "quantity": {
+          "value": 1,
+          "confidence": 0.96
+        },
+        "price_without_vat": {
+          "value": 42279.0,
+          "confidence": 0.95
+        },
+        "amount_without_vat": {
+          "value": 42279.0,
+          "confidence": 0.94
+        },
+        "vat_rate": {
+          "value": "20%",
+          "confidence": 0.95
+        },
+        "vat_amount": {
+          "value": 8455.8,
+          "confidence": 0.94
+        },
+        "amount_with_vat": {
+          "value": 50734.8,
+          "confidence": 0.93
+        },
+        "code_okpd2": {
+          "value": "15.11.11.110",
+          "confidence": 0.9
+        }
+      },
+      {
+        "line_number": {
+          "value": 6,
+          "confidence": 0.98
+        },
+        "name": {
+          "value": "Клипсы CDM 200*160 Black Europe",
+          "confidence": 0.95
+        },
+        "unit": {
+          "value": "шт",
+          "confidence": 0.97
+        },
+        "quantity": {
+          "value": 1,
+          "confidence": 0.96
+        },
+        "price_without_vat": {
+          "value": 42279.0,
+          "confidence": 0.95
+        },
+        "amount_without_vat": {
+          "value": 42279.0,
+          "confidence": 0.94
+        },
+        "vat_rate": {
+          "value": "20%",
+          "confidence": 0.95
+        },
+        "vat_amount": {
+          "value": 8455.8,
+          "confidence": 0.94
+        },
+        "amount_with_vat": {
+          "value": 50734.8,
+          "confidence": 0.93
+        },
+        "code_okpd2": {
+          "value": "15.11.11.110",
+          "confidence": 0.9
+        }
+      },
+      {
+        "line_number": {
+          "value": 7,
+          "confidence": 0.98
+        },
+        "name": {
+          "value": "Клипсы CDM 200*160 Black Europe",
+          "confidence": 0.95
+        },
+        "unit": {
+          "value": "шт",
+          "confidence": 0.97
+        },
+        "quantity": {
+          "value": 1,
+          "confidence": 0.96
+        },
+        "price_without_vat": {
+          "value": 42279.0,
+          "confidence": 0.95
+        },
+        "amount_without_vat": {
+          "value": 42279.0,
+          "confidence": 0.94
+        },
+        "vat_rate": {
+          "value": "20%",
+          "confidence": 0.95
+        },
+        "vat_amount": {
+          "value": 8455.8,
+          "confidence": 0.94
+        },
+        "amount_with_vat": {
+          "value": 50734.8,
+          "confidence": 0.93
+        },
+        "code_okpd2": {
+          "value": "15.11.11.110",
+          "confidence": 0.9
+        }
+      },
+      {
+        "line_number": {
+          "value": 8,
+          "confidence": 0.98
+        },
+        "name": {
+          "value": "Клипсы CDM 200*160 Black Europe",
+          "confidence": 0.95
+        },
+        "unit": {
+          "value": "шт",
+          "confidence": 0.97
+        },
+        "quantity": {
+          "value": 1,
+          "confidence": 0.96
+        },
+        "price_without_vat": {
+          "value": 42279.0,
+          "confidence": 0.95
+        },
+        "amount_without_vat": {
+          "value": 42279.0,
+          "confidence": 0.94
+        },
+        "vat_rate": {
+          "value": "20%",
+          "confidence": 0.95
+        },
+        "vat_amount": {
+          "value": 8455.8,
+          "confidence": 0.94
+        },
+        "amount_with_vat": {
+          "value": 50734.8,
+          "confidence": 0.93
+        },
+        "code_okpd2": {
+          "value": "15.11.11.110",
+          "confidence": 0.9
+        }
+      },
+      {
+        "line_number": {
+          "value": 9,
+          "confidence": 0.98
+        },
+        "name": {
+          "value": "Клипсы CDM 200*160 Black Europe",
+          "confidence": 0.95
+        },
+        "unit": {
+          "value": "шт",
+          "confidence": 0.97
+        },
+        "quantity": {
+          "value": 1,
+          "confidence": 0.96
+        },
+        "price_without_vat": {
+          "value": 42279.0,
+          "confidence": 0.95
+        },
+        "amount_without_vat": {
+          "value": 42279.0,
+          "confidence": 0.94
+        },
+        "vat_rate": {
+          "value": "20%",
+          "confidence": 0.95
+        },
+        "vat_amount": {
+          "value": 8455.8,
+          "confidence": 0.94
+        },
+        "amount_with_vat": {
+          "value": 50734.8,
+          "confidence": 0.93
+        },
+        "code_okpd2": {
+          "value": "15.11.11.110",
+          "confidence": 0.9
+        }
+      },
+      {
+        "line_number": {
+          "value": 10,
+          "confidence": 0.98
+        },
+        "name": {
+          "value": "Клипсы CDM 200*160 Black Europe",
+          "confidence": 0.95
+        },
+        "unit": {
+          "value": "шт",
+          "confidence": 0.97
+        },
+        "quantity": {
+          "value": 1,
+          "confidence": 0.96
+        },
+        "price_without_vat": {
+          "value": 42279.0,
+          "confidence": 0.95
+        },
+        "amount_without_vat": {
+          "value": 42279.0,
+          "confidence": 0.94
+        },
+        "vat_rate": {
+          "value": "20%",
+          "confidence": 0.95
+        },
+        "vat_amount": {
+          "value": 8455.8,
+          "confidence": 0.94
+        },
+        "amount_with_vat": {
+          "value": 50734.8,
+          "confidence": 0.93
+        },
+        "code_okpd2": {
+          "value": "15.11.11.110",
+          "confidence": 0.9
+        }
+      },
+      {
+        "line_number": {
+          "value": 11,
+          "confidence": 0.98
+        },
+        "name": {
+          "value": "Клипсы CDM 200*160 Black Europe",
+          "confidence": 0.95
+        },
+        "unit": {
+          "value": "шт",
+          "confidence": 0.97
+        },
+        "quantity": {
+          "value": 1,
+          "confidence": 0.96
+        },
+        "price_without_vat": {
+          "value": 42279.0,
+          "confidence": 0.95
+        },
+        "amount_without_vat": {
+          "value": 42279.0,
+          "confidence": 0.94
+        },
+        "vat_rate": {
+          "value": "20%",
+          "confidence": 0.95
+        },
+        "vat_amount": {
+          "value": 8455.8,
+          "confidence": 0.94
+        },
+        "amount_with_vat": {
+          "value": 50734.8,
+          "confidence": 0.93
+        },
+        "code_okpd2": {
+          "value": "15.11.11.110",
+          "confidence": 0.9
+        }
+      }
+    ],
+    "visual_marks": {
+      "seals": [
+        {
+          "page": 1,
+          "bbox": {
+            "x1": 700,
+            "y1": 330,
+            "x2": 880,
+            "y2": 450
+          },
+          "type": "round",
+          "text": {
+            "value": "askona Для документа",
+            "confidence": 0.95
+          },
+          "confidence": 0.96
+        },
+        {
+          "page": 2,
+          "bbox": {
+            "x1": 650,
+            "y1": 800,
+            "x2": 830,
+            "y2": 920
+          },
+          "type": "round",
+          "text": {
+            "value": "ООО \"БИСЕЛА ЮГ\" ИНН 7603081753 КПП 760301001",
+            "confidence": 0.95
+          },
+          "confidence": 0.96
+        }
+      ],
+      "signatures": [
+        {
+          "page": 1,
+          "bbox": {
+            "x1": 450,
+            "y1": 800,
+            "x2": 500,
+            "y2": 850
+          },
+          "role": "Подпись руководителя",
+          "name": {
+            "value": "Пищулина В.А.",
+            "confidence": 0.95
+          },
+          "confidence": 0.96
+        },
+        {
+          "page": 2,
+          "bbox": {
+            "x1": 650,
+            "y1": 900,
+            "x2": 700,
+            "y2": 950
+          },
+          "role": "Подпись генерального директора",
+          "name": {
+            "value": "Пищулина В.А.",
+            "confidence": 0.95
+          },
+          "confidence": 0.96
+        }
+      ]
+    }
+  },
+  "visual_marks": {}
+}
+```
+
+[2026-03-31T13:53:20.456760] --- COMPLETE ---
+Processing for job bc6e1a89-3d0b-437b-9d77-88ae277aa41e finished successfully.
