@@ -50,6 +50,7 @@ class ProcessingJob(Base):
     __tablename__ = "processing_jobs"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     mode = Column(String) # sync or async
+    module = Column(String, default="standard") # e.g. closing-docs, enforcement, standard
     status = Column(String, default="pending") # pending, processing, done, failed
     started_at = Column(DateTime, default=datetime.utcnow)
     finished_at = Column(DateTime, nullable=True)
@@ -58,6 +59,17 @@ class ProcessingJob(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True) # Nullable so existing jobs don't break
     created_at = Column(DateTime, default=datetime.utcnow)
     
+    user = relationship("User")
+
+class JobFeedback(Base):
+    __tablename__ = "job_feedback"
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(UUID(as_uuid=True), ForeignKey("processing_jobs.id"), unique=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    rating = Column(Integer, default=5) # 1 to 5
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    job = relationship("ProcessingJob")
     user = relationship("User")
 
 class Document(Base):

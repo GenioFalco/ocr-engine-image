@@ -17,7 +17,7 @@ const CodeBlock = ({ code }) => {
 
 const RobotPortal = ({ onLogout }) => {
     const username = localStorage.getItem('username') || 'robot';
-    const apiBase = `${window.location.protocol}//${window.location.hostname}:8000`;
+    const apiBase = window.location.origin;
 
     // ── New secure flow: client_id → token ─────────────────────────────────
     const curlToken = `curl -s -X POST "${apiBase}/auth/token" \\

@@ -34,9 +34,10 @@ const Login = ({ onLogin }) => {
     return (
         <div className="flex items-center justify-center pt-24">
             <div className="w-full max-w-md bg-white p-8 rounded-xl shadow-lg border border-slate-100">
-                <div className="text-center mb-8">
-                    <h2 className="text-3xl font-bold text-slate-900">Вход в систему</h2>
-                    <p className="text-slate-500 mt-2">OCR Engine Dashboard</p>
+                <div className="text-center mb-8 flex flex-col items-center">
+                    <img src="/logo.svg" alt="Logo" className="h-12 object-contain mb-4" />
+                    <h2 className="text-2xl font-bold text-slate-900">Вход в систему</h2>
+                    <p className="text-slate-500 mt-1">CES OSR IDP</p>
                 </div>
 
                 {error && (

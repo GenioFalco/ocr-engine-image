@@ -1,7 +1,39 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import api from '../api';
-import { Upload, X, FileText, CheckCircle, AlertCircle, RefreshCw, Loader2, History, ChevronRight } from 'lucide-react';
+import { toast } from '../components/Toast';
+import {
+    Upload, X, FileText, Scale, Scan, CheckCircle, AlertCircle,
+    RefreshCw, Loader2, History, ChevronRight, ArrowLeft
+} from 'lucide-react';
+
+// ── Module config ─────────────────────────────────────────────────────────────
+const MODULES = {
+    'closing-docs': {
+        title: 'Закрывающие документы',
+        Icon: FileText,
+        color: 'text-sky-600',
+        bg: 'bg-sky-50',
+        border: 'border-sky-200',
+        badge: 'bg-sky-100 text-sky-700',
+    },
+    'enforcement': {
+        title: 'Исполнительные листы',
+        Icon: Scale,
+        color: 'text-violet-600',
+        bg: 'bg-violet-50',
+        border: 'border-violet-200',
+        badge: 'bg-violet-100 text-violet-700',
+    },
+    'standard': {
+        title: 'Стандартный модуль',
+        Icon: Scan,
+        color: 'text-emerald-600',
+        bg: 'bg-emerald-50',
+        border: 'border-emerald-200',
+        badge: 'bg-emerald-100 text-emerald-700',
+    },
+};
 
 const fmt = (bytes) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -10,8 +42,8 @@ const fmt = (bytes) => {
 };
 
 const statusIcon = (s) => {
-    if (s === 'done') return <CheckCircle className="w-4 h-4 text-emerald-500" />;
-    if (s === 'error') return <AlertCircle className="w-4 h-4 text-red-500" />;
+    if (s === 'done')       return <CheckCircle className="w-4 h-4 text-emerald-500" />;
+    if (s === 'error')      return <AlertCircle className="w-4 h-4 text-red-500" />;
     if (s === 'processing') return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />;
     return <div className="w-4 h-4 rounded-full border-2 border-slate-300" />;
 };
@@ -20,47 +52,51 @@ const statusLabel = { queued: 'Очередь', processing: 'Обработка�
 
 const UserDashboard = () => {
     const navigate = useNavigate();
+    const { moduleId } = useParams();
+    const module = MODULES[moduleId] || MODULES['closing-docs'];
+    const { title, Icon, color, bg, border, badge } = module;
+
     const fileInputRef = useRef(null);
     const [dragOver, setDragOver] = useState(false);
 
-    // Selected files before upload
-    const [selectedFiles, setSelectedFiles] = useState([]); // [{file, id}]
+    const [selectedFiles, setSelectedFiles] = useState([]);
+    const [batch, setBatch]           = useState([]);
+    const [uploading, setUploading]   = useState(false);
 
-    // Batch upload state: [{id, name, size, status, jobId, error}]
-    const [batch, setBatch] = useState([]);
-    const [uploading, setUploading] = useState(false);
-
-    // History
-    const [history, setHistory] = useState([]);
+    const [history, setHistory]       = useState([]);
     const [histLoading, setHistLoading] = useState(true);
+    const [jobNames, setJobNames]     = useState({});
 
     const fetchHistory = async () => {
         setHistLoading(true);
-        try { const { data } = await api.get('/jobs'); setHistory(data); }
-        catch { }
+        try {
+            const { data } = await api.get('/jobs');
+            setHistory(data);
+        } catch { }
         finally { setHistLoading(false); }
+        try {
+            setJobNames(JSON.parse(localStorage.getItem('ocr_job_names') || '{}'));
+        } catch { }
     };
     useEffect(() => { fetchHistory(); }, []);
 
-    // ── File selection ──────────────────────────────────────────────────────
+    // ── File selection ────────────────────────────────────────────────────────
     const addFiles = (files) => {
-        const newItems = Array.from(files).map(file => ({ id: Math.random().toString(36).slice(2), file }));
+        const newItems = Array.from(files).map(file => ({
+            id: Math.random().toString(36).slice(2), file,
+        }));
         setSelectedFiles(prev => [...prev, ...newItems]);
     };
 
     const removeFile = (id) => setSelectedFiles(prev => prev.filter(f => f.id !== id));
 
-    const onDrop = (e) => {
-        e.preventDefault(); setDragOver(false);
-        addFiles(e.dataTransfer.files);
-    };
+    const onDrop = (e) => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); };
 
-    // ── Upload all files sequentially ───────────────────────────────────────
+    // ── Upload ────────────────────────────────────────────────────────────────
     const handleUpload = async () => {
         if (!selectedFiles.length) return;
         setUploading(true);
 
-        // Init batch with queued status
         const initialBatch = selectedFiles.map(({ id, file }) => ({
             id, name: file.name, size: file.size, file, status: 'queued', jobId: null, error: null,
         }));
@@ -68,23 +104,33 @@ const UserDashboard = () => {
         setSelectedFiles([]);
 
         const doneJobIds = [];
+        let errorCount = 0;
 
         for (let i = 0; i < initialBatch.length; i++) {
             const item = initialBatch[i];
-
-            // Mark as processing
             setBatch(prev => prev.map(b => b.id === item.id ? { ...b, status: 'processing' } : b));
 
             try {
                 const formData = new FormData();
                 formData.append('file', item.file);
+                formData.append('module', moduleId || 'standard');
+                
                 const { data } = await api.post('/process', formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
+                    headers: { 'Content-Type': 'multipart/form-data' },
                 });
                 const jobId = data.job_id;
                 doneJobIds.push(jobId);
+
+                // Save filename to localStorage
+                try {
+                    const stored = JSON.parse(localStorage.getItem('ocr_job_names') || '{}');
+                    stored[jobId] = item.name;
+                    localStorage.setItem('ocr_job_names', JSON.stringify(stored));
+                } catch { }
+
                 setBatch(prev => prev.map(b => b.id === item.id ? { ...b, status: 'done', jobId } : b));
             } catch (err) {
+                errorCount++;
                 const msg = err.response?.data?.detail || 'Ошибка загрузки';
                 setBatch(prev => prev.map(b => b.id === item.id ? { ...b, status: 'error', error: msg } : b));
             }
@@ -93,7 +139,14 @@ const UserDashboard = () => {
         setUploading(false);
         fetchHistory();
 
-        // Navigate to batch viewer if at least one succeeded
+        if (doneJobIds.length > 0 && errorCount === 0) {
+            toast.success(`Готово! ${doneJobIds.length > 1 ? doneJobIds.length + ' файлов' : '1 файл'} распознан(о).`);
+        } else if (doneJobIds.length > 0 && errorCount > 0) {
+            toast.warning(`Распознано: ${doneJobIds.length}, с ошибкой: ${errorCount}`);
+        } else if (errorCount > 0) {
+            toast.error('Не удалось обработать файлы.');
+        }
+
         if (doneJobIds.length === 1) {
             navigate(`/result/${doneJobIds[0]}`);
         } else if (doneJobIds.length > 1) {
@@ -105,13 +158,30 @@ const UserDashboard = () => {
     const doneIds = batch.filter(b => b.status === 'done').map(b => b.jobId);
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8">
-            <div>
-                <h1 className="text-2xl font-bold tracking-tight text-slate-900">Распознавание документов</h1>
-                <p className="text-slate-400 text-sm mt-1">Загрузите один или несколько PDF-файлов для обработки.</p>
+        <div className="max-w-4xl mx-auto space-y-6">
+
+            {/* ─── Module header ──────────────────────────────────────────── */}
+            <div className="flex items-center gap-4">
+                <button
+                    onClick={() => navigate('/')}
+                    className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 font-medium
+                        px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors shadow-sm"
+                >
+                    <ArrowLeft className="w-4 h-4" /> Модули
+                </button>
+
+                <div className="flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-xl ${bg} ${border} border flex items-center justify-center`}>
+                        <Icon className={`w-5 h-5 ${color}`} />
+                    </div>
+                    <div>
+                        <h1 className="text-lg font-bold text-slate-900 leading-tight">{title}</h1>
+                        <p className="text-xs text-slate-400">Загрузите PDF-файлы для распознавания</p>
+                    </div>
+                </div>
             </div>
 
-            {/* ─── Upload zone ─────────────────────────────────────────── */}
+            {/* ─── Upload zone ─────────────────────────────────────────────── */}
             {batch.length === 0 && (
                 <div
                     onClick={() => !uploading && fileInputRef.current.click()}
@@ -119,25 +189,32 @@ const UserDashboard = () => {
                     onDragLeave={() => setDragOver(false)}
                     onDrop={onDrop}
                     className={`relative border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all
-                        ${dragOver ? 'border-primary bg-sky-50/60 scale-[1.01]' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/40'}`}
+                        ${dragOver
+                            ? `${border} ${bg} scale-[1.01]`
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/40'
+                        }`}
                 >
-                    <input ref={fileInputRef} type="file" multiple accept=".pdf,application/pdf"
-                        className="hidden" onChange={e => addFiles(e.target.files)} />
-                    <Upload className={`w-10 h-10 mx-auto mb-3 transition-colors ${dragOver ? 'text-primary' : 'text-slate-300'}`} />
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        accept=".pdf,application/pdf"
+                        className="hidden"
+                        onChange={e => addFiles(e.target.files)}
+                    />
+                    <Upload className={`w-10 h-10 mx-auto mb-3 transition-colors ${dragOver ? color : 'text-slate-300'}`} />
                     <p className="text-base font-semibold text-slate-700">Перетащите файлы или нажмите для выбора</p>
                     <p className="text-sm text-slate-400 mt-1">Поддерживается: PDF • Можно выбрать несколько файлов сразу</p>
                 </div>
             )}
 
-            {/* ─── Selected files (before upload) ──────────────────────── */}
+            {/* ─── Selected files (before upload) ──────────────────────────── */}
             {selectedFiles.length > 0 && (
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                     <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                         <p className="text-sm font-semibold text-slate-800">Выбрано файлов: {selectedFiles.length}</p>
-                        <div className="flex items-center gap-2">
-                            <button onClick={() => fileInputRef.current.click()}
-                                className="text-xs text-primary font-medium hover:underline">+ Добавить ещё</button>
-                        </div>
+                        <button onClick={() => fileInputRef.current.click()}
+                            className={`text-xs font-medium hover:underline ${color}`}>+ Добавить ещё</button>
                     </div>
                     <ul className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
                         {selectedFiles.map(({ id, file }) => (
@@ -147,7 +224,8 @@ const UserDashboard = () => {
                                     <p className="text-sm font-medium text-slate-800 truncate">{file.name}</p>
                                     <p className="text-xs text-slate-400">{fmt(file.size)}</p>
                                 </div>
-                                <button onClick={() => removeFile(id)} className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-rose-500 transition-colors">
+                                <button onClick={() => removeFile(id)}
+                                    className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-rose-500 transition-colors">
                                     <X className="w-3.5 h-3.5" />
                                 </button>
                             </li>
@@ -155,15 +233,17 @@ const UserDashboard = () => {
                     </ul>
                     <div className="px-5 py-4 bg-slate-50/40 border-t border-slate-100 flex items-center gap-3">
                         <button onClick={handleUpload}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white text-sm font-semibold rounded-xl hover:bg-slate-700 transition-colors shadow-sm">
+                            className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white text-sm font-semibold
+                                rounded-xl hover:bg-slate-700 transition-colors shadow-sm">
                             <Upload className="w-4 h-4" /> Распознать все ({selectedFiles.length})
                         </button>
-                        <button onClick={() => setSelectedFiles([])} className="text-sm text-slate-400 hover:text-slate-600">Очистить</button>
+                        <button onClick={() => setSelectedFiles([])}
+                            className="text-sm text-slate-400 hover:text-slate-600">Очистить</button>
                     </div>
                 </div>
             )}
 
-            {/* ─── Batch progress ───────────────────────────────────────── */}
+            {/* ─── Batch progress ───────────────────────────────────────────── */}
             {batch.length > 0 && (
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                     <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
@@ -171,8 +251,12 @@ const UserDashboard = () => {
                             Обработка пакета — {batch.filter(b => b.status === 'done').length}/{batch.length} готово
                         </p>
                         {allDone && doneIds.length > 0 && (
-                            <button onClick={() => doneIds.length === 1 ? navigate(`/result/${doneIds[0]}`) : navigate(`/batch/${doneIds.join(',')}`)}
-                                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition-colors">
+                            <button
+                                onClick={() => doneIds.length === 1
+                                    ? navigate(`/result/${doneIds[0]}`)
+                                    : navigate(`/batch/${doneIds.join(',')}`)}
+                                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-sm
+                                    font-semibold rounded-lg hover:bg-emerald-700 transition-colors">
                                 Открыть результаты <ChevronRight className="w-4 h-4" />
                             </button>
                         )}
@@ -185,15 +269,18 @@ const UserDashboard = () => {
                                     <p className="text-sm font-medium text-slate-800 truncate">{item.name}</p>
                                     {item.error && <p className="text-xs text-red-500 mt-0.5">{item.error}</p>}
                                 </div>
-                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${item.status === 'done' ? 'bg-emerald-100 text-emerald-700' :
-                                        item.status === 'error' ? 'bg-red-100 text-red-600' :
-                                            item.status === 'processing' ? 'bg-blue-100 text-blue-700' :
-                                                'bg-slate-100 text-slate-500'}`}>
+                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                    item.status === 'done'       ? 'bg-emerald-100 text-emerald-700' :
+                                    item.status === 'error'      ? 'bg-red-100 text-red-600' :
+                                    item.status === 'processing' ? 'bg-blue-100 text-blue-700' :
+                                                                   'bg-slate-100 text-slate-500'}`}>
                                     {statusLabel[item.status]}
                                 </span>
                                 {item.status === 'done' && item.jobId && (
                                     <button onClick={() => navigate(`/result/${item.jobId}`)}
-                                        className="text-xs text-primary hover:underline ml-2">Открыть</button>
+                                        className={`text-xs font-medium hover:underline ml-2 ${color}`}>
+                                        Открыть
+                                    </button>
                                 )}
                             </li>
                         ))}
@@ -207,19 +294,22 @@ const UserDashboard = () => {
                 </div>
             )}
 
-            {/* ─── History ──────────────────────────────────────────────── */}
+            {/* ─── History ──────────────────────────────────────────────────── */}
             {batch.length === 0 && (
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                     <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                         <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
                             <History className="w-4 h-4 text-slate-400" /> История заданий
                         </h2>
-                        <button onClick={fetchHistory} className="text-xs text-slate-400 hover:text-slate-700 flex items-center gap-1">
+                        <button onClick={fetchHistory}
+                            className="text-xs text-slate-400 hover:text-slate-700 flex items-center gap-1">
                             <RefreshCw className="w-3 h-3" /> Обновить
                         </button>
                     </div>
                     {histLoading ? (
-                        <div className="py-10 flex justify-center"><RefreshCw className="w-5 h-5 text-primary animate-spin" /></div>
+                        <div className="py-10 flex justify-center">
+                            <RefreshCw className="w-5 h-5 text-primary animate-spin" />
+                        </div>
                     ) : history.length === 0 ? (
                         <p className="py-10 text-center text-slate-400 italic text-sm">Загруженных документов нет</p>
                     ) : (
@@ -229,12 +319,19 @@ const UserDashboard = () => {
                                     className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/60 cursor-pointer transition-colors group">
                                     <FileText className="w-4 h-4 text-slate-300 shrink-0" />
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-mono text-slate-500 truncate">{String(job.id).substring(0, 8)}…</p>
+                                        <p className="text-sm font-medium text-slate-700 truncate">
+                                            {jobNames[job.id] || (
+                                                <span className="font-mono text-slate-400 text-xs">
+                                                    {String(job.id).substring(0, 8)}…
+                                                </span>
+                                            )}
+                                        </p>
                                         <p className="text-xs text-slate-400">{new Date(job.created_at).toLocaleString('ru-RU')}</p>
                                     </div>
-                                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${job.status === 'done' ? 'bg-emerald-100 text-emerald-700' :
-                                            job.status === 'error' ? 'bg-red-100 text-red-600' :
-                                                'bg-blue-100 text-blue-700'}`}>
+                                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                        job.status === 'done'  ? 'bg-emerald-100 text-emerald-700' :
+                                        job.status === 'error' ? 'bg-red-100 text-red-600' :
+                                                                 'bg-blue-100 text-blue-700'}`}>
                                         {statusLabel[job.status] || job.status}
                                     </span>
                                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors" />

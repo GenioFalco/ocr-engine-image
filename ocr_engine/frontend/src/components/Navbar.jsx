@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, LogOut, User, ChevronDown, Key } from 'lucide-react';
+import { LayoutDashboard, LogOut, User, ChevronDown } from 'lucide-react';
 
 const Navbar = ({ role, onLogout }) => {
     const navigate = useNavigate();
@@ -24,11 +24,9 @@ const Navbar = ({ role, onLogout }) => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between h-16">
                     {/* Logo */}
-                    <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-                        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold shadow-sm text-xs">
-                            OCR
-                        </div>
-                        <span className="font-bold text-xl text-slate-900 tracking-tight">Engine</span>
+                    <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
+                        <img src="/logo.svg" alt="Logo" className="h-8 object-contain" />
+                        <span className="font-bold text-lg text-slate-800 tracking-tight">CES OSR IDP</span>
                         {role === 'admin' && (
                             <span className="ml-2 px-2 py-0.5 bg-rose-100 text-rose-700 text-xs font-bold rounded-md border border-rose-200">
                                 ADMIN
@@ -68,23 +66,6 @@ const Navbar = ({ role, onLogout }) => {
                                     </div>
 
                                     <div className="py-1">
-                                        <button
-                                            onClick={() => { setDropdownOpen(false); navigate('/profile'); }}
-                                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors text-left"
-                                        >
-                                            <User className="w-4 h-4 text-slate-400" />
-                                            Мой профиль
-                                        </button>
-                                        <button
-                                            onClick={() => { setDropdownOpen(false); navigate('/profile#apikey'); }}
-                                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors text-left"
-                                        >
-                                            <Key className="w-4 h-4 text-slate-400" />
-                                            API Доступ
-                                        </button>
-                                    </div>
-
-                                    <div className="border-t border-slate-100 pt-1 pb-1">
                                         <button
                                             onClick={() => { setDropdownOpen(false); onLogout(); }}
                                             className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 transition-colors text-left font-medium"

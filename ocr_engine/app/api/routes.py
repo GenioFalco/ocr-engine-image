@@ -2,7 +2,7 @@ from fastapi import APIRouter, UploadFile, File, BackgroundTasks, HTTPException,
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.db.base import get_db, SessionLocal
-from app.models.models import ProcessingJob, Document, ExtractedResult
+from app.models.models import ProcessingJob, Document, ExtractedResult, JobFeedback
 from app.engine.pipeline import OCREngine
 from app.config.settings import settings
 import uuid
@@ -11,6 +11,12 @@ import shutil
 from datetime import datetime
 from app.services.auth_service import get_current_user, get_current_admin_user
 from app.models.models import User
+from pydantic import BaseModel
+from sqlalchemy import func
+
+class FeedbackCreate(BaseModel):
+    job_id: uuid.UUID
+    rating: int
 
 router = APIRouter()
 
@@ -31,9 +37,14 @@ def process_job_background(job_id: uuid.UUID, file_path: str):
         db.close()
 
 @router.post("/process")
-async def process_sync(file: UploadFile = File(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def process_sync(
+    file: UploadFile = File(...), 
+    module: str = "standard",
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_user)
+):
     job_id = uuid.uuid4()
-    job = ProcessingJob(id=job_id, mode="sync", status="processing", user_id=current_user.id)
+    job = ProcessingJob(id=job_id, mode="sync", module=module, status="processing", user_id=current_user.id)
     db.add(job)
     db.commit()
 
@@ -76,11 +87,12 @@ async def process_sync(file: UploadFile = File(...), db: Session = Depends(get_d
 async def process_async(
     background_tasks: BackgroundTasks, 
     file: UploadFile = File(...), 
+    module: str = "standard",
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     job_id = uuid.uuid4()
-    job = ProcessingJob(id=job_id, mode="async", status="pending", user_id=current_user.id)
+    job = ProcessingJob(id=job_id, mode="async", module=module, status="pending", user_id=current_user.id)
     db.add(job)
     db.commit()
     
@@ -111,7 +123,11 @@ async def get_result(job_id: uuid.UUID, db: Session = Depends(get_db), current_u
                 "confidence": doc.confidence,
                 "fields": extraction.fields_json if extraction else {},
             })
-        return {"status": job.status, "documents": results}
+        # Fetch feedback logic
+        feedback = db.query(JobFeedback).filter(JobFeedback.job_id == job_id).first()
+        rating = feedback.rating if feedback else None
+            
+        return {"status": job.status, "documents": results, "rating": rating}
         
     return {"status": job.status, "error": job.error_message}
 
@@ -171,6 +187,47 @@ async def get_all_jobs(db: Session = Depends(get_db), admin: User = Depends(get_
     """Fetch all jobs across all users (Admin only)."""
     jobs = db.query(ProcessingJob).order_by(ProcessingJob.created_at.desc()).all()
     return [{"id": j.id, "user_id": j.user_id, "mode": j.mode, "status": j.status, "created_at": j.created_at, "error_message": j.error_message} for j in jobs]
+
+@router.post("/feedback")
+def submit_feedback(data: FeedbackCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    job = db.query(ProcessingJob).filter(ProcessingJob.id == data.job_id).first()
+    if not job: raise HTTPException(404, "Job not found")
+    if job.user_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(403, "Not authorized")
+        
+    feedback = db.query(JobFeedback).filter(JobFeedback.job_id == data.job_id).first()
+    if feedback:
+        feedback.rating = data.rating
+    else:
+        feedback = JobFeedback(job_id=data.job_id, user_id=current_user.id, rating=data.rating)
+        db.add(feedback)
+    db.commit()
+    return {"status": "success"}
+
+@router.get("/admin/analytics")
+def get_analytics(db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
+    total_jobs = db.query(ProcessingJob).count()
+    failed_jobs = db.query(ProcessingJob).filter(ProcessingJob.status == "failed").count()
+    
+    avg = db.query(func.avg(JobFeedback.rating)).scalar()
+    overall_rating = round(avg, 1) if avg else 0.0
+    
+    m_stats = db.query(ProcessingJob.module, func.count(ProcessingJob.id), func.avg(JobFeedback.rating))\
+        .outerjoin(JobFeedback, ProcessingJob.id == JobFeedback.job_id)\
+        .group_by(ProcessingJob.module).all()
+        
+    module_stats = [{"name": m[0] or "unknown", "count": m[1], "avg_rating": round(m[2], 1) if m[2] else 0.0} for m in m_stats]
+    
+    dist = db.query(JobFeedback.rating, func.count(JobFeedback.id)).group_by(JobFeedback.rating).all()
+    rating_dist = {str(r[0]): r[1] for r in dist}
+    
+    return {
+        "total_jobs": total_jobs,
+        "failed_jobs": failed_jobs,
+        "overall_rating": overall_rating,
+        "module_stats": module_stats,
+        "rating_distribution": rating_dist
+    }
 
 # --- Management API ---
 from app.schemas.admin import DocumentTypeCreate, ContractCreate, ModelCreate

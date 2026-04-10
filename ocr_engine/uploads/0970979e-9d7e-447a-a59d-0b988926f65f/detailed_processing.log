@@ -1,0 +1,426 @@
+
+[2026-04-10T14:30:17.401698] --- INIT ---
+File path: uploads/0970979e-9d7e-447a-a59d-0b988926f65f/Акт выполненных работ №320 от 03.09.2025  (поступление) (78817252 v1).PDF
+
+[2026-04-10T14:30:20.808514] --- OCR_START ---
+Running Tesserocr on Page 1 (in memory, 35% crop)
+
+[2026-04-10T14:30:20.816272] --- OCR_TIME ---
+Page 1 processed in 3.23s
+
+[2026-04-10T14:30:20.823806] --- OCR_RESULT ---
+Type: Act | Header True | ['AKT:title']
+Preview:  Акт № 320 от 31 августа 2025 г.  000 "Технология чистоты", ИНН 3327145578, 600021, Владимирская обл...
+
+[2026-04-10T14:30:20.851506] --- OCR_START ---
+Running Tesserocr on Page 2 (in memory, 35% crop)
+
+[2026-04-10T14:30:20.859692] --- OCR_TIME ---
+Page 2 processed in 2.72s
+
+[2026-04-10T14:30:20.867503] --- OCR_RESULT ---
+Type: Invoice-Factura | Header True | ['SF:title']
+Preview:  Счет-фактура № 321  Исправление № = Продавец: 000 "Технология чистотьг  600027, Владимирская обл, г...
+
+[2026-04-10T14:30:20.985280] --- SCHEMA_SELECTION ---
+Selected schema for 'Act': Found
+
+[2026-04-10T14:30:20.997005] --- SCHEMA_SELECTION ---
+Selected schema for 'Invoice-Factura': Found
+
+[2026-04-10T14:30:21.004292] --- PARALLEL_LLM ---
+Starting 2 parallel Qwen extractions (with staggered 1s starts)...
+
+[2026-04-10T14:30:21.013739] --- RENDER_START ---
+[Act] Lazily rendering 1 full pages for LLM (Matrix 2.0)
+
+[2026-04-10T14:30:21.329039] --- RENDER_TIME ---
+Rendered Act_1_page_1.jpg in 0.31s
+
+[2026-04-10T14:30:21.336176] --- EXTRACTION_START ---
+[Act] Sending to Qwen LLM: ['Act_1_page_1.jpg']
+
+[2026-04-10T14:30:22.184110] --- RENDER_START ---
+[Invoice-Factura] Lazily rendering 1 full pages for LLM (Matrix 2.0)
+
+[2026-04-10T14:30:22.566405] --- RENDER_TIME ---
+Rendered Invoice-Factura_2_page_1.jpg in 0.34s
+
+[2026-04-10T14:30:22.576557] --- EXTRACTION_START ---
+[Invoice-Factura] Sending to Qwen LLM: ['Invoice-Factura_2_page_1.jpg']
+
+[2026-04-10T14:30:38.237395] --- EXTRACTION_RESULT ---
+Doc Invoice-Factura Raw LLM Response:
+```json
+{
+  "doc_type": "Invoice-Factura",
+  "structured": {
+    "document_title": {
+      "value": "Счет-фактура",
+      "confidence": 0.95
+    },
+    "document_number": {
+      "value": "321",
+      "confidence": 0.98
+    },
+    "document_date": {
+      "value": "31 августа 2025",
+      "confidence": 0.97
+    },
+    "currency": {
+      "value": "RUB",
+      "confidence": 0.95
+    },
+    "seller": {
+      "name": {
+        "value": "ООО 'Биомедика'",
+        "confidence": 0.96
+      },
+      "inn": {
+        "value": "3271455723501001",
+        "confidence": 0.97
+      },
+      "kpp": {
+        "value": "320010001",
+        "confidence": 0.96
+      },
+      "address": {
+        "value": "140000, Московская обл., г. Балашиха, ул. Балашовская, д. 2",
+        "confidence": 0.95
+      }
+    },
+    "buyer": {
+      "name": {
+        "value": "ООО 'Российский медицинский центр'",
+        "confidence": 0.95
+      },
+      "inn": {
+        "value": "305607975995001",
+        "confidence": 0.96
+      },
+      "kpp": {
+        "value": "300010001",
+        "confidence": 0.95
+      },
+      "address": {
+        "value": "115114, г. Москва, ул. Комсомольская, д. 28",
+        "confidence": 0.94
+      }
+    },
+    "consignor": {
+      "name": {
+        "value": null,
+        "confidence": 0.0
+      },
+      "inn": {
+        "value": null,
+        "confidence": 0.0
+      },
+      "kpp": {
+        "value": null,
+        "confidence": 0.0
+      }
+    },
+    "consignee": {
+      "name": {
+        "value": null,
+        "confidence": 0.0
+      },
+      "inn": {
+        "value": null,
+        "confidence": 0.0
+      },
+      "kpp": {
+        "value": null,
+        "confidence": 0.0
+      }
+    },
+    "basis_document": {
+      "type": {
+        "value": "Договор № 230 от 31.08.2023",
+        "confidence": 0.95
+      },
+      "number": {
+        "value": null,
+        "confidence": 0.0
+      },
+      "date": {
+        "value": null,
+        "confidence": 0.0
+      }
+    },
+    "amounts": {
+      "subtotal_without_vat": {
+        "value": 20000.0,
+        "confidence": 0.95
+      },
+      "vat_amount": {
+        "value": 4000.0,
+        "confidence": 0.95
+      },
+      "total_with_vat": {
+        "value": 24000.0,
+        "confidence": 0.95
+      }
+    },
+    "items": [
+      {
+        "line_number": {
+          "value": 1,
+          "confidence": 0.95
+        },
+        "name": {
+          "value": "Анализ крови на глюкозу",
+          "confidence": 0.95
+        },
+        "unit": {
+          "value": "анализ",
+          "confidence": 0.95
+        },
+        "quantity": {
+          "value": 1.0,
+          "confidence": 0.95
+        },
+        "price_without_vat": {
+          "value": 20000.0,
+          "confidence": 0.95
+        },
+        "amount_without_vat": {
+          "value": 20000.0,
+          "confidence": 0.95
+        },
+        "vat_rate": {
+          "value": "20%",
+          "confidence": 0.95
+        },
+        "vat_amount": {
+          "value": 4000.0,
+          "confidence": 0.95
+        },
+        "amount_with_vat": {
+          "value": 24000.0,
+          "confidence": 0.95
+        },
+        "code_okpd2": {
+          "value": "32.00.00.000",
+          "confidence": 0.95
+        }
+      }
+    ],
+    "visual_marks": {
+      "seals": [],
+      "signatures": [
+        {
+          "page": 1,
+          "bbox": {
+            "x1": 540,
+            "y1": 780,
+            "x2": 580,
+            "y2": 820
+          },
+          "role": "Подпись лица, ответственного за составление и достоверность сведений в счете-фактуре",
+          "name": {
+            "value": "Петров И.И.",
+            "confidence": 0.95
+          },
+          "confidence": 0.95
+        }
+      ]
+    }
+  },
+  "visual_marks": {}
+}
+```
+
+[2026-04-10T14:30:38.802407] --- EXTRACTION_RESULT ---
+Doc Act Raw LLM Response:
+```json
+{
+  "documents": [
+    {
+      "doc_type": "Act",
+      "structured": {
+        "document_title": {
+          "value": "Акт № 320 от 31 августа 2025 г.",
+          "confidence": 0.98
+        },
+        "document_number": {
+          "value": "320",
+          "confidence": 0.95
+        },
+        "document_date": {
+          "value": "31 августа 2025 г.",
+          "confidence": 0.97
+        },
+        "currency": {
+          "value": "руб.",
+          "confidence": 0.99
+        },
+        "seller": {
+          "name": {
+            "value": "ООО \"Технология чистоты\"",
+            "confidence": 0.96
+          },
+          "inn": {
+            "value": "3327145578",
+            "confidence": 0.97
+          },
+          "kpp": {
+            "value": "4070281062441000357",
+            "confidence": 0.95
+          },
+          "address": {
+            "value": "600021, Владимирская обл., городской округ город Владимир, Владимир г., Мира ул., дом 2, офис 4",
+            "confidence": 0.94
+          }
+        },
+        "buyer": {
+          "name": {
+            "value": "ООО \"Аскона-Век\"",
+            "confidence": 0.96
+          },
+          "inn": {
+            "value": "3305037917",
+            "confidence": 0.97
+          },
+          "kpp": {
+            "value": "3010181014525000411",
+            "confidence": 0.95
+          },
+          "address": {
+            "value": "601914, Владимирская обл., Ковров г., Комсомольская ул., дом 116Г, строение 25, помещение 1,4 этаж, офис 26",
+            "confidence": 0.94
+          }
+        },
+        "amounts": {
+          "subtotal_without_vat": {
+            "value": 28000.0,
+            "confidence": 0.99
+          },
+          "vat_amount": {
+            "value": 4666.67,
+            "confidence": 0.98
+          },
+          "total_with_vat": {
+            "value": 32666.67,
+            "confidence": 0.99
+          }
+        },
+        "items": [
+          {
+            "line_number": {
+              "value": 1,
+              "confidence": 0.99
+            },
+            "name": {
+              "value": "Вывоз производственных отходов бункером 8м3 за август 2025 г.",
+              "confidence": 0.98
+            },
+            "unit": {
+              "value": "м3",
+              "confidence": 0.99
+            },
+            "quantity": {
+              "value": 32,
+              "confidence": 0.99
+            },
+            "price_without_vat": {
+              "value": 875.0,
+              "confidence": 0.99
+            },
+            "amount_without_vat": {
+              "value": 28000.0,
+              "confidence": 0.99
+            },
+            "vat_rate": {
+              "value": "20%",
+              "confidence": 0.98
+            },
+            "vat_amount": {
+              "value": 4666.67,
+              "confidence": 0.98
+            },
+            "amount_with_vat": {
+              "value": 32666.67,
+              "confidence": 0.99
+            },
+            "code_okpd2": {
+              "value": null,
+              "confidence": 0.0
+            }
+          }
+        ]
+      },
+      "visual_marks": {
+        "seals": [
+          {
+            "page": 1,
+            "bbox": {
+              "x1": 200,
+              "y1": 550,
+              "x2": 300,
+              "y2": 620
+            },
+            "type": "round",
+            "text": {
+              "value": "РОССИЙСКАЯ ФЕДЕРАЦИЯ АККОНТАБЕЛЬНАЯ ОБЛАСТЬ КОВРОВ",
+              "confidence": 0.95
+            },
+            "confidence": 0.97
+          },
+          {
+            "page": 2,
+            "bbox": {
+              "x1": 500,
+              "y1": 1050,
+              "x2": 600,
+              "y2": 1120
+            },
+            "type": "round",
+            "text": {
+              "value": "РОССИЙСКАЯ ФЕДЕРАЦИЯ АККОНТАБЕЛЬНАЯ ОБЛАСТЬ КОВРОВ",
+              "confidence": 0.95
+            },
+            "confidence": 0.97
+          }
+        ],
+        "signatures": [
+          {
+            "page": 1,
+            "bbox": {
+              "x1": 200,
+              "y1": 520,
+              "x2": 280,
+              "y2": 560
+            },
+            "role": "Генеральный директор",
+            "name": {
+              "value": "Ретова И. В.",
+              "confidence": 0.95
+            },
+            "confidence": 0.98
+          },
+          {
+            "page": 2,
+            "bbox": {
+              "x1": 500,
+              "y1": 1020,
+              "x2": 580,
+              "y2": 1060
+            },
+            "role": "Генеральный директор",
+            "name": {
+              "value": "Ретова И. В.",
+              "confidence": 0.95
+            },
+            "confidence": 0.98
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+[2026-04-10T14:30:38.885275] --- COMPLETE ---
+Processing for job 0970979e-9d7e-447a-a59d-0b988926f65f finished successfully.

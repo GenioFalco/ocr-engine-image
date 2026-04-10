@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api';
-import { ArrowLeft, Check, Copy, AlertCircle, RefreshCw, FileText, Building2, Building, Package, Truck, Calculator, List } from 'lucide-react';
+import { ArrowLeft, Check, Copy, AlertCircle, RefreshCw, FileText, Building2, Building, Package, Truck, Calculator, List, Star } from 'lucide-react';
+import { toast } from '../components/Toast';
 
 const formatCurrency = (value) => {
     if (value == null || value === '' || value === '-' || !Number(value)) return value || '-';
@@ -19,12 +20,16 @@ const ResultViewer = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [copiedKey, setCopiedKey] = useState(null);
+    const [rating, setRating] = useState(null);
+    const [hoverRating, setHoverRating] = useState(0);
+    const [submittingRating, setSubmittingRating] = useState(false);
 
     const fetchResult = async () => {
         try {
             setLoading(true);
             const { data } = await api.get(`/result/${jobId}`);
             setResult(data);
+            if (data.rating) setRating(data.rating);
         } catch (err) {
             setError('Не удалось загрузить результаты. Возможно, вы не имеете доступа к этому документу.');
         } finally {
@@ -41,6 +46,20 @@ const ResultViewer = () => {
         navigator.clipboard.writeText(String(text));
         setCopiedKey(key);
         setTimeout(() => setCopiedKey(null), 2000);
+    };
+
+    const handleRating = async (val) => {
+        if (submittingRating) return;
+        setSubmittingRating(true);
+        try {
+            await api.post('/feedback', { job_id: jobId, rating: val });
+            setRating(val);
+            toast.success('Спасибо за вашу оценку!');
+        } catch (err) {
+            toast.error('Ошибка сохранения оценки.');
+        } finally {
+            setSubmittingRating(false);
+        }
     };
 
     if (loading) {
@@ -238,11 +257,36 @@ const ResultViewer = () => {
                 >
                     <ArrowLeft className="w-4 h-4" /> Назад
                 </button>
-                <div className="text-right">
-                    <p className="text-xs text-slate-400 font-mono tracking-tight text-right uppercase">ID: {jobId}</p>
-                    <p className="text-sm font-semibold text-slate-800">
-                        Статус: {result?.status === 'done' ? <span className="text-emerald-600 font-bold bg-emerald-50 px-2 rounded">Распознано</span> : result?.status}
-                    </p>
+                <div className="flex flex-col items-end gap-2">
+                    <div className="text-right">
+                        <p className="text-xs text-slate-400 font-mono tracking-tight text-right uppercase">ID: {jobId}</p>
+                        <p className="text-sm font-semibold text-slate-800 flex items-center justify-end gap-2 mt-0.5">
+                            Статус: {result?.status === 'done' ? <span className="text-emerald-600 font-bold bg-emerald-50 px-2 rounded">Распознано</span> : result?.status}
+                        </p>
+                    </div>
+                    {result?.status === 'done' && (
+                        <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
+                            <span className="text-xs font-semibold text-slate-500 mr-1">Оценить результат:</span>
+                            {[1, 2, 3, 4, 5].map(val => (
+                                <button
+                                    key={val}
+                                    disabled={submittingRating}
+                                    onClick={() => handleRating(val)}
+                                    onMouseEnter={() => setHoverRating(val)}
+                                    onMouseLeave={() => setHoverRating(0)}
+                                    className="focus:outline-none transition-transform hover:scale-110 disabled:opacity-50"
+                                >
+                                    <Star 
+                                        className={`w-4 h-4 transition-colors ${
+                                            (hoverRating || rating) >= val 
+                                                ? 'fill-amber-400 text-amber-400' 
+                                                : 'text-slate-300'
+                                        }`} 
+                                    />
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
 
