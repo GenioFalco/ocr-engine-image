@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api';
-import { ArrowLeft, Check, Copy, AlertCircle, RefreshCw, FileText, Building2, Building, Package, Truck, Calculator, List, Star } from 'lucide-react';
+import { ArrowLeft, Check, Copy, AlertCircle, RefreshCw, FileText, Building2, Building, Package, Truck, Calculator, List, Star, Download } from 'lucide-react';
 import { toast } from '../components/Toast';
+import { exportClosingDocsToExcel } from '../utils/excel';
 
 const formatCurrency = (value) => {
     if (value == null || value === '' || value === '-' || !Number(value)) return value || '-';
@@ -251,12 +252,22 @@ const ResultViewer = () => {
     return (
         <div className="h-[85vh] flex flex-col pt-4 animate-in fade-in duration-500">
             <div className="flex items-center justify-between mb-4">
-                <button
-                    onClick={() => navigate('/')}
-                    className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-medium bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm"
-                >
-                    <ArrowLeft className="w-4 h-4" /> Назад
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => navigate('/')}
+                        className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-medium bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm"
+                    >
+                        <ArrowLeft className="w-4 h-4" /> Назад
+                    </button>
+                    {result?.documents?.length > 0 && (
+                        <button
+                            onClick={() => exportClosingDocsToExcel(result.documents)}
+                            className="flex items-center gap-2 px-3 py-2 bg-emerald-50 text-emerald-700 text-sm font-semibold rounded-lg hover:bg-emerald-100 transition-colors border border-emerald-200 shadow-sm"
+                        >
+                            <Download className="w-4 h-4" /> Excel
+                        </button>
+                    )}
+                </div>
                 <div className="flex flex-col items-end gap-2">
                     <div className="text-right">
                         <p className="text-xs text-slate-400 font-mono tracking-tight text-right uppercase">ID: {jobId}</p>

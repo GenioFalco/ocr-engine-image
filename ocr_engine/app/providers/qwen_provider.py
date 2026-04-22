@@ -26,7 +26,8 @@ class QwenProvider(BaseLLM):
             # Pointing the OpenAI client to Qwen's DashScope compatible API (International Region)
             self.client = OpenAI(
                 api_key=self.api_key,
-                base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+                base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+                timeout=120.0  # 2 minutes max — prevent indefinite hang
             )
         else:
             self.client = None

@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  gateway:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # Эта директория нужна для прохождения проверки от Let's Encrypt / acme.sh
+      - ./acme-workspace:/var/www/acme-challenge
+    extra_hosts:
+      # Это позволяет Nginx достучаться до портов 5173 и 8000 на основном сервере (localhost)
+      - "host.docker.internal:host-gateway"

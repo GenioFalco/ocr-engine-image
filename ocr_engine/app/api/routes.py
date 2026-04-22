@@ -131,6 +131,20 @@ async def get_result(job_id: uuid.UUID, db: Session = Depends(get_db), current_u
         
     return {"status": job.status, "error": job.error_message}
 
+@router.get("/debug/result/{job_id}")
+async def debug_result(job_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Debug endpoint — shows raw fields_json and raw_llm_response for a job."""
+    documents = db.query(Document).filter(Document.job_id == job_id).all()
+    out = []
+    for doc in documents:
+        extraction = db.query(ExtractedResult).filter(ExtractedResult.document_id == doc.id).first()
+        out.append({
+            "document_type": doc.document_type,
+            "fields_json": extraction.fields_json if extraction else None,
+            "raw_llm_response": extraction.raw_llm_response[:2000] if extraction and extraction.raw_llm_response else None,
+        })
+    return out
+
 from fastapi.responses import FileResponse
 from typing import Optional
 import jwt

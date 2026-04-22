@@ -1,0 +1,54 @@
+
+[2026-04-14T12:48:48.027470] --- INIT ---
+File path: uploads/15829d82-b394-4dc7-8ecf-90c5afaa27bd/aТ10-09-25-77-40-712527,10.pdf
+
+[2026-04-14T12:48:52.142655] --- ORIENTATION ---
+OSD detected incorrect orientation. Auto-rotating page 1 by 180 degrees.
+
+[2026-04-14T12:48:52.152977] --- OCR_START ---
+Running Tesserocr on Page 1 (in memory, 35% crop)
+
+[2026-04-14T12:48:52.163967] --- OCR_TIME ---
+Page 1 processed in 4.02s
+
+[2026-04-14T12:48:52.172902] --- OCR_RESULT ---
+Type: Invoice-Factura | Header True | ['SF:title']
+Preview:  Универсальный | Счет-фактура № 77-40 от  передаточный Исправление № — от документ SS  Продавец: ИП ...
+
+[2026-04-14T12:48:52.201187] --- ORIENTATION ---
+OSD detected incorrect orientation. Auto-rotating page 2 by 270 degrees.
+
+[2026-04-14T12:48:52.210013] --- OCR_START ---
+Running Tesserocr on Page 2 (in memory, 35% crop)
+
+[2026-04-14T12:48:52.217652] --- OCR_TIME ---
+Page 2 processed in 1.27s
+
+[2026-04-14T12:48:52.226064] --- OCR_RESULT ---
+Type: unknown | Header False | ['no-hit']
+Preview:  ...
+
+[2026-04-14T12:48:52.379814] --- SCHEMA_SELECTION ---
+Selected schema for 'Invoice-Factura': Found
+
+[2026-04-14T12:48:52.394225] --- PARALLEL_LLM ---
+Starting 1 parallel Qwen extractions (with staggered 1s starts)...
+
+[2026-04-14T12:48:52.409743] --- RENDER_START ---
+[Invoice-Factura] Lazily rendering 2 full pages for LLM (Matrix 2.0)
+
+[2026-04-14T12:48:52.836894] --- RENDER_TIME ---
+Rendered Invoice-Factura_1_page_1.jpg in 0.41s
+
+[2026-04-14T12:48:53.163335] --- RENDER_TIME ---
+Rendered Invoice-Factura_1_page_2.jpg in 0.31s
+
+[2026-04-14T12:48:53.179812] --- EXTRACTION_START ---
+[Invoice-Factura] Sending to Qwen LLM: ['Invoice-Factura_1_page_1.jpg', 'Invoice-Factura_1_page_2.jpg']
+
+[2026-04-14T13:12:56.114522] --- EXTRACTION_RESULT ---
+Doc Invoice-Factura Raw LLM Response:
+Error: Request timed out.
+
+[2026-04-14T13:12:56.182042] --- COMPLETE ---
+Processing for job 15829d82-b394-4dc7-8ecf-90c5afaa27bd finished successfully.

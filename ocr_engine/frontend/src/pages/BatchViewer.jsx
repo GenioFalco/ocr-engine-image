@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api';
-import { ArrowLeft, Check, Copy, AlertCircle, RefreshCw, FileText, Building, List } from 'lucide-react';
+import { ArrowLeft, Check, Copy, AlertCircle, RefreshCw, FileText, Building, List, Download } from 'lucide-react';
+import { exportClosingDocsToExcel } from '../utils/excel';
 
 // ── re-used helpers (same as ResultViewer) ────────────────────────────────────
 const formatCurrency = (value) => {
@@ -153,15 +154,35 @@ const BatchViewer = () => {
     const token = localStorage.getItem('token');
     const iframeUrl = currentId ? `/api/preview/${currentId}?token=${token}` : null;
 
+    const handleExportExcel = () => {
+        const allDocs = [];
+        ids.forEach(id => {
+            if (results[id] && results[id].documents) {
+                allDocs.push(...results[id].documents);
+            }
+        });
+        if (allDocs.length > 0) exportClosingDocsToExcel(allDocs);
+    };
+
     return (
         <div className="flex flex-col h-[calc(100vh-64px)] -mx-4 sm:-mx-6 lg:-mx-8 -my-8">
             {/* Top bar */}
-            <div className="bg-white border-b border-slate-200 px-6 py-3 flex items-center gap-4 shrink-0">
-                <button onClick={() => navigate('/')} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 font-medium transition-colors">
-                    <ArrowLeft className="w-4 h-4" /> Назад
+            <div className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-4">
+                    <button onClick={() => navigate('/')} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 font-medium transition-colors">
+                        <ArrowLeft className="w-4 h-4" /> Назад
+                    </button>
+                    <span className="text-slate-200">|</span>
+                    <p className="text-sm font-semibold text-slate-700">Пакет: {ids.length} документ(ов)</p>
+                </div>
+                
+                <button 
+                    onClick={handleExportExcel}
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 text-sm font-semibold rounded-lg hover:bg-emerald-100 transition-colors border border-emerald-200 shadow-sm"
+                >
+                    <Download className="w-4 h-4" />
+                    Экспорт в Excel
                 </button>
-                <span className="text-slate-200">|</span>
-                <p className="text-sm font-semibold text-slate-700">Пакет: {ids.length} документ(ов)</p>
             </div>
 
             <div className="flex flex-1 min-h-0">
