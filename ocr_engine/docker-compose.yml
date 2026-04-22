@@ -3,8 +3,7 @@ version: '3.8'
 services:
   ocr_engine:
     build: .
-    ports:
-      - "8000:8000"
+    # ports убраны для безопасности, доступ только через шлюз
     env_file:
       - .env
     environment:
@@ -33,10 +32,23 @@ services:
   frontend:
     build:
       context: ./frontend
-    ports:
-      - "5173:80"
+    # ports убраны для безопасности, доступ только через шлюз
     depends_on:
       - ocr_engine
+    networks:
+      - ocr_net
+
+  gateway:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./gateway.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./acme-challenge:/var/www/acme-challenge
+    depends_on:
+      - ocr_engine
+      - frontend
     networks:
       - ocr_net
 
