@@ -14,8 +14,6 @@ services:
       - db
     volumes:
       - .:/app
-    networks:
-      - ocr_net
 
   db:
     image: postgres:15
@@ -27,8 +25,6 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5433:5432"
-    networks:
-      - ocr_net
 
   frontend:
     build:
@@ -37,11 +33,9 @@ services:
       - "5173:80"
     depends_on:
       - ocr_engine
-    networks:
-      - ocr_net
 
 networks:
-  ocr_net:
+  default:
     driver: bridge
     ipam:
       config:

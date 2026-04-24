@@ -11,3 +11,10 @@ services:
     extra_hosts:
       # Позволяет Nginx стучаться на порты основного сервера (localhost)
       - "host.docker.internal:host-gateway"
+
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 12.10.3.0/24
