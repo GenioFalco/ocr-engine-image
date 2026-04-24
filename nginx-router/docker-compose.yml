@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  orchestrator:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      # Папка с конфигурациями для каждого отдельного сайта/домена
+      - ./conf.d:/etc/nginx/conf.d:ro
+    extra_hosts:
+      # Позволяет Nginx стучаться на порты основного сервера (localhost)
+      - "host.docker.internal:host-gateway"
