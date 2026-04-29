@@ -133,6 +133,33 @@ function App() {
     const [role, setRole] = useState(null);
 
     useEffect(() => {
+        // Обработка токена из URL после входа через SAML (AD FS редиректит сюда с ?token=...)
+        const params = new URLSearchParams(window.location.search);
+        const urlToken = params.get('token');
+        if (urlToken) {
+            localStorage.setItem('token', urlToken);
+            // Получаем роль и имя пользователя через /auth/me
+            fetch('/api/auth/me', { headers: { Authorization: `Bearer ${urlToken}` } })
+                .then(r => r.json())
+                .then(data => {
+                    const userRole = data.role || 'user';
+                    const username = data.username || '';
+                    localStorage.setItem('role', userRole);
+                    localStorage.setItem('username', username);
+                    setIsAuthenticated(true);
+                    setRole(userRole);
+                    // Убираем ?token= из адресной строки
+                    window.history.replaceState({}, '', '/');
+                })
+                .catch(() => {
+                    localStorage.setItem('role', 'user');
+                    setIsAuthenticated(true);
+                    setRole('user');
+                    window.history.replaceState({}, '', '/');
+                });
+            return;
+        }
+
         const token = localStorage.getItem('token');
         const userRole = localStorage.getItem('role');
         if (token) {
