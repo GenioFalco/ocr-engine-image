@@ -10,9 +10,12 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
     email = Column(String, unique=True, index=True, nullable=True)
-    hashed_password = Column(String)
+    hashed_password = Column(String, nullable=True)        # None для SAML-пользователей
+    saml_nameid = Column(String, unique=True, index=True, nullable=True)  # NameID из AD FS
+    display_name = Column(String, nullable=True)           # ФИО из AD
+    department = Column(String, nullable=True)             # Отдел из AD
     is_active = Column(Boolean, default=True)
-    role = Column(String, default="user") # admin or user
+    role = Column(String, default="user")                  # admin, user, robot
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class DocumentType(Base):
@@ -120,13 +123,10 @@ class Log(Base):
 class ApiKey(Base):
     __tablename__ = "api_keys"
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     client_id = Column(String, unique=True, index=True, nullable=False)
     client_secret_hash = Column(String, nullable=False)
-    label = Column(String, nullable=True)
+    description = Column(String, nullable=True)  # для чего ключ, кому выдан
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     last_used_at = Column(DateTime, nullable=True)
-
-    user = relationship("User")
 

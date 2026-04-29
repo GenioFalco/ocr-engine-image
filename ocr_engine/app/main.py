@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 from app.api.routes import router as api_router
 from app.api.auth import router as auth_router
+from app.api.saml_auth import router as saml_router
 from app.db.base import engine, Base
 from app.config.settings import settings
 import app.models.models  # noqa: F401 — ensure all tables are registered with Base before create_all
@@ -17,6 +18,7 @@ app = FastAPI(
 
 app.include_router(api_router)
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
+app.include_router(saml_router, prefix="/auth/saml", tags=["auth-saml"])
 
 @app.get("/health")
 def health_check():
