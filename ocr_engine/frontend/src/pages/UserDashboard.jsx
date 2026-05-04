@@ -4,7 +4,7 @@ import api from '../api';
 import { toast } from '../components/Toast';
 import {
     Upload, X, FileText, Scale, Scan, CheckCircle, AlertCircle,
-    RefreshCw, Loader2, History, ChevronRight, ArrowLeft
+    RefreshCw, Loader2, History, ChevronRight, ArrowLeft, AlignLeft, Copy
 } from 'lucide-react';
 
 // ── Module config ─────────────────────────────────────────────────────────────
@@ -32,6 +32,14 @@ const MODULES = {
         bg: 'bg-emerald-50',
         border: 'border-emerald-200',
         badge: 'bg-emerald-100 text-emerald-700',
+    },
+    'text-extract': {
+        title: 'Извлечение текста',
+        Icon: AlignLeft,
+        color: 'text-orange-600',
+        bg: 'bg-orange-50',
+        border: 'border-orange-200',
+        badge: 'bg-orange-100 text-orange-700',
     },
 };
 
@@ -66,6 +74,7 @@ const UserDashboard = () => {
     const [history, setHistory]       = useState([]);
     const [histLoading, setHistLoading] = useState(true);
     const [jobNames, setJobNames]     = useState({});
+    const [textResult, setTextResult] = useState(null); // для модуля text-extract
 
     const fetchHistory = async () => {
         setHistLoading(true);
@@ -96,6 +105,26 @@ const UserDashboard = () => {
     const handleUpload = async () => {
         if (!selectedFiles.length) return;
         setUploading(true);
+        setTextResult(null);
+
+        // Модуль извлечения текста — отдельный лёгкий эндпоинт без LLM
+        if (moduleId === 'text-extract') {
+            try {
+                const item = selectedFiles[0]; // берём первый файл
+                const formData = new FormData();
+                formData.append('file', item.file);
+                const { data } = await api.post('/extract-text', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                });
+                setTextResult({ ...data, filename: item.file.name });
+                toast.success(`Текст извлечён: ${data.total_pages} стр.`);
+            } catch (err) {
+                toast.error(err.response?.data?.detail || 'Ошибка извлечения текста');
+            }
+            setSelectedFiles([]);
+            setUploading(false);
+            return;
+        }
 
         const initialBatch = selectedFiles.map(({ id, file }) => ({
             id, name: file.name, size: file.size, file, status: 'queued', jobId: null, error: null,
@@ -114,14 +143,13 @@ const UserDashboard = () => {
                 const formData = new FormData();
                 formData.append('file', item.file);
                 formData.append('module', moduleId || 'standard');
-                
+
                 const { data } = await api.post('/process', formData, {
                     headers: { 'Content-Type': 'multipart/form-data' },
                 });
                 const jobId = data.job_id;
                 doneJobIds.push(jobId);
 
-                // Save filename to localStorage
                 try {
                     const stored = JSON.parse(localStorage.getItem('ocr_job_names') || '{}');
                     stored[jobId] = item.name;
@@ -156,6 +184,54 @@ const UserDashboard = () => {
 
     const allDone = batch.length > 0 && batch.every(b => b.status === 'done' || b.status === 'error');
     const doneIds = batch.filter(b => b.status === 'done').map(b => b.jobId);
+
+    // ── Результат извлечения текста ───────────────────────────────────────────
+    if (textResult) {
+        return (
+            <div className="max-w-4xl mx-auto space-y-4">
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => setTextResult(null)}
+                        className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 font-medium
+                            px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors shadow-sm"
+                    >
+                        <ArrowLeft className="w-4 h-4" /> Назад
+                    </button>
+                    <div>
+                        <h1 className="text-lg font-bold text-slate-900">{textResult.filename}</h1>
+                        <p className="text-xs text-slate-400">{textResult.total_pages} стр. · Метод: OCR + нативный текст</p>
+                    </div>
+                    <button
+                        onClick={() => { navigator.clipboard.writeText(textResult.full_text); toast.success('Скопировано!'); }}
+                        className="ml-auto flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg
+                            bg-orange-50 border border-orange-200 text-orange-700 hover:bg-orange-100 transition-colors"
+                    >
+                        <Copy className="w-4 h-4" /> Копировать всё
+                    </button>
+                </div>
+
+                {textResult.pages.map(p => (
+                    <div key={p.page} className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                        <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-200">
+                            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                Страница {p.page}
+                            </span>
+                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                                p.method === 'native'
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : 'bg-orange-100 text-orange-700'
+                            }`}>
+                                {p.method === 'native' ? 'Нативный текст' : 'OCR (Tesseract)'}
+                            </span>
+                        </div>
+                        <pre className="p-4 text-sm text-slate-700 whitespace-pre-wrap font-mono leading-relaxed">
+                            {p.text || <span className="text-slate-300 italic">Текст не обнаружен</span>}
+                        </pre>
+                    </div>
+                ))}
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">

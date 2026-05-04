@@ -383,6 +383,87 @@ def delete_contract(contract_id: int, db: Session = Depends(get_db), admin: User
     db.commit()
     return {"status": "deleted", "id": contract_id}
 
+@router.post("/extract-text", summary="Извлечь весь текст из документа без структуры")
+async def extract_text(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Извлекает весь текст из PDF или изображения без классификации и LLM.
+    Для цифровых PDF — мгновенно через PyMuPDF.
+    Для сканов и рукописного текста — через Tesseract OCR.
+    Возвращает текст постранично и единой строкой.
+    """
+    import fitz
+    from app.utils.classification import extract_text_from_raw_samples, detect_orientation
+
+    job_id = uuid.uuid4()
+    file_path = save_upload_file(file, job_id)
+
+    try:
+        with open(file_path, "rb") as f:
+            pdf_bytes = f.read()
+
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        pages_result = []
+
+        for i in range(len(doc)):
+            page = doc[i]
+
+            # 1. Сначала пробуем нативное извлечение (мгновенно для цифровых PDF)
+            native_text = page.get_text("text").strip()
+
+            if len(native_text) >= 50:
+                # Цифровой PDF — текст извлечён нативно
+                pages_result.append({
+                    "page": i + 1,
+                    "method": "native",
+                    "text": native_text
+                })
+            else:
+                # Скан или рукопись — запускаем Tesseract на всей странице
+                mat = fitz.Matrix(2.0, 2.0)
+
+                # Определяем ориентацию
+                pix_osd = page.get_pixmap(matrix=fitz.Matrix(1.5, 1.5), alpha=False)
+                rotation = detect_orientation(
+                    pix_osd.samples, pix_osd.width, pix_osd.height,
+                    pix_osd.n, pix_osd.stride
+                )
+                if rotation != 0:
+                    page.set_rotation(rotation)
+
+                pix = page.get_pixmap(matrix=mat, alpha=False)
+                ocr_text = extract_text_from_raw_samples(
+                    pix.samples, pix.width, pix.height, pix.n, pix.stride
+                ).strip()
+
+                pages_result.append({
+                    "page": i + 1,
+                    "method": "ocr",
+                    "text": ocr_text or native_text
+                })
+
+        doc.close()
+
+        full_text = "\n\n".join(
+            f"=== Страница {p['page']} ===\n{p['text']}"
+            for p in pages_result if p["text"]
+        )
+
+        return {
+            "job_id": str(job_id),
+            "filename": file.filename,
+            "total_pages": len(pages_result),
+            "pages": pages_result,
+            "full_text": full_text
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка извлечения текста: {str(e)}")
+
+
 @router.post("/admin/init")
 def init_defaults(db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
     defaults = ["Invoice", "Act", "UPD", "Contract"]
