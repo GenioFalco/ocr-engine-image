@@ -242,7 +242,9 @@ const ResultViewer = () => {
         const docSum = getValue(flat, ['total_amount','amount','total','сумма_документа','итого']);
         const contrNum = getValue(flat, ['contract_number','номер_договора','договор_номер']);
         const docDate = getValue(flat, ['document_date','дата_документа','дата']);
-        const vatRate = getValue(flat, ['vat_rate','ставка_ндс','ндс_ставка']);
+        // vat_rate often lives only inside items[0], not at top level — check both
+        const vatRate = getValue(flat, ['vat_rate','ставка_ндс','ндс_ставка'])
+            || (table.length > 0 ? getValue(flattenObj(table[0]), ['vat_rate','ставка_ндс','ндс_ставка']) : '');
         const contract = getValue(flat, ['contract_title','договор','основание']);
 
         const requisitesText = [

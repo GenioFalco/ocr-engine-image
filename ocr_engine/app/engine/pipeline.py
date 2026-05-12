@@ -406,7 +406,7 @@ class OCREngine:
                     page_idx = p["page_num"] - 1
                     t0 = time.time()
                     dt = fitz.open(stream=pdf_bytes, filetype="pdf")
-                    mat = fitz.Matrix(2.0, 2.0) # Adjusted DPI for better quality with Gemini
+                    mat = fitz.Matrix(2.5, 2.5)  # 180 DPI — better digit accuracy in tables
                     pix = dt[page_idx].get_pixmap(matrix=mat, alpha=False)
                     jpeg_bytes = pix.tobytes("jpeg")
                     dt.close()
