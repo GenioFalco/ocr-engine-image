@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, BackgroundTasks, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, Form, BackgroundTasks, HTTPException, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.db.base import get_db, SessionLocal
@@ -28,19 +28,22 @@ def save_upload_file(upload_file: UploadFile, job_id: uuid.UUID) -> str:
         shutil.copyfileobj(upload_file.file, buffer)
     return file_path
 
-def process_job_background(job_id: uuid.UUID, file_path: str):
+def process_job_background(job_id: uuid.UUID, file_path: str, module: str = "standard"):
     db: Session = SessionLocal()
     try:
         engine = OCREngine(job_id=job_id, db=db)
-        engine.run(file_path)
+        if module == "text-extract":
+            engine.run_text_extract(file_path)
+        else:
+            engine.run(file_path)
     finally:
         db.close()
 
 @router.post("/process")
 async def process_sync(
-    file: UploadFile = File(...), 
-    module: str = "standard",
-    db: Session = Depends(get_db), 
+    file: UploadFile = File(...),
+    module: str = Form("standard"),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     job_id = uuid.uuid4()
@@ -50,11 +53,11 @@ async def process_sync(
 
     try:
         file_path = save_upload_file(file, job_id)
-        # For sync processing, we can use the request session if we are careful, 
-        # but OCREngine might take a while. 
-        # OCREngine uses internal commits, so it should be fine.
         engine = OCREngine(job_id=job_id, db=db)
-        engine.run(file_path)
+        if module == "text-extract":
+            engine.run_text_extract(file_path)
+        else:
+            engine.run(file_path)
         
         # Reload job to get status
         db.refresh(job)
@@ -75,7 +78,7 @@ async def process_sync(
                 "signatures": extraction.signatures_json if extraction else []
             })
             
-        return {"status": "success", "job_id": str(job_id), "documents": results}
+        return {"status": "success", "job_id": str(job_id), "module": module, "documents": results}
 
     except Exception as e:
         job.status = "failed"
@@ -85,9 +88,9 @@ async def process_sync(
 
 @router.post("/process_async")
 async def process_async(
-    background_tasks: BackgroundTasks, 
-    file: UploadFile = File(...), 
-    module: str = "standard",
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    module: str = Form("standard"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -97,9 +100,9 @@ async def process_async(
     db.commit()
     
     file_path = save_upload_file(file, job_id)
-    
+
     # Background task
-    background_tasks.add_task(process_job_background, job_id, file_path)
+    background_tasks.add_task(process_job_background, job_id, file_path, module)
     
     return {"job_id": str(job_id), "status": "pending"}
 
@@ -127,9 +130,9 @@ async def get_result(job_id: uuid.UUID, db: Session = Depends(get_db), current_u
         feedback = db.query(JobFeedback).filter(JobFeedback.job_id == job_id).first()
         rating = feedback.rating if feedback else None
             
-        return {"status": job.status, "documents": results, "rating": rating}
-        
-    return {"status": job.status, "error": job.error_message}
+        return {"status": job.status, "module": job.module, "documents": results, "rating": rating}
+
+    return {"status": job.status, "module": job.module, "error": job.error_message}
 
 @router.get("/debug/result/{job_id}")
 async def debug_result(job_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

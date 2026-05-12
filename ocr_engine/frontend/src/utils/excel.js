@@ -79,7 +79,9 @@ const findMainTable = (obj) => {
 export const exportClosingDocsToExcel = (documents) => {
     const rows = documents.map(doc => {
         const structured = parseFields(doc.fields || {});
-        const flatData = flattenObject(structured);
+        // Remove visual_marks so findMainTable doesn't pick up seals/signatures arrays
+        const { visual_marks: _vm, ...fieldsData } = structured;
+        const flatData = flattenObject(fieldsData);
 
         // --- Организация (ИНН Покупателя) ---
         const org = getValue(flatData, ['buyer_inn', 'инн_покупателя', 'инн_заказчика', 'покупатель_инн', 'buyer']);
@@ -103,7 +105,10 @@ export const exportClosingDocsToExcel = (documents) => {
         const contract = getValue(flatData, ['contract_title', 'договор', 'основание']);
 
         // --- Таблица товаров ---
-        const tableArr = findMainTable(structured);
+        // Prefer the explicit 'items' key; fall back to findMainTable if absent
+        const tableArr = (Array.isArray(fieldsData.items) && fieldsData.items.length > 0)
+            ? fieldsData.items
+            : findMainTable(fieldsData);
         let tableString = '';
         if (tableArr.length > 0) {
             tableString = tableArr.map(item => {

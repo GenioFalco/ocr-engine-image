@@ -228,8 +228,32 @@ class OpenRouterProvider(BaseLLM):
     def validate_extraction(self, extraction_result: ExtractionResult, images_data: List[Dict[str, Any]]) -> bool:
         if not extraction_result.fields:
             return False
-            
+
         data = extraction_result.fields
         if not data.get("document_date") and not data.get("document_number") and not data.get("amounts"):
              return False
         return True
+
+    def extract_raw_text(self, images_data: List[Dict[str, Any]]) -> str:
+        """Extract all text from page images verbatim using LLM vision."""
+        if not self.client:
+            return ""
+        try:
+            prompt = (
+                "Перед тобой страница документа (возможно скан или фото). "
+                "Твоя задача: извлечь ВЕСЬ текст с изображения дословно, сохраняя структуру строк. "
+                "Включай рукописный текст, печатный текст, таблицы, заголовки — всё что видишь. "
+                "Если текст нечёткий — пиши максимально точно. "
+                "Верни ТОЛЬКО извлечённый текст, без пояснений, без преамбул."
+            )
+            message_content = self._prepare_image_message(prompt, images_data)
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": message_content}],
+                temperature=0.0,
+                max_tokens=self.max_tokens
+            )
+            return response.choices[0].message.content or ""
+        except Exception as e:
+            logger.error(f"OpenRouter extract_raw_text error: {e}")
+            return f"[Ошибка извлечения текста: {e}]"

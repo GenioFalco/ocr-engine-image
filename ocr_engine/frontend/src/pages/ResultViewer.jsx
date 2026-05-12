@@ -1,9 +1,55 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api';
-import { ArrowLeft, Check, Copy, AlertCircle, RefreshCw, FileText, Building2, Building, Package, Truck, Calculator, List, Star, Download } from 'lucide-react';
+import { ArrowLeft, Check, Copy, AlertCircle, RefreshCw, FileText, Building2, Building, Package, Truck, Calculator, List, Star, Download, AlignLeft } from 'lucide-react';
 import { toast } from '../components/Toast';
 import { exportClosingDocsToExcel } from '../utils/excel';
+
+// ── Утилиты для closing-docs (дублируем логику из excel.js) ──────────────────
+const getValue = (flatData, keys) => {
+    for (const key of keys) {
+        const nk = key.toLowerCase().replace(/[^a-zа-яё0-9]/g, '');
+        for (const [rk, val] of Object.entries(flatData)) {
+            if (rk.toLowerCase().replace(/[^a-zа-яё0-9]/g, '') === nk && val != null && val !== '' && val !== 'null')
+                return val;
+        }
+    }
+    for (const key of keys) {
+        const nk = key.toLowerCase().replace(/[^a-zа-яё0-9]/g, '');
+        if (nk.length < 3) continue;
+        for (const [rk, val] of Object.entries(flatData)) {
+            if (rk.toLowerCase().replace(/[^a-zа-яё0-9]/g, '').includes(nk) && val != null && val !== '' && val !== 'null')
+                return val;
+        }
+    }
+    return '';
+};
+const flattenObj = (obj, prefix = '') => {
+    const r = {};
+    if (!obj || typeof obj !== 'object') return r;
+    for (const [k, v] of Object.entries(obj)) {
+        const key = prefix ? `${prefix} ${k}` : k;
+        if (Array.isArray(v)) continue;
+        if (v && typeof v === 'object' && 'value' in v) { if (v.value != null) r[key] = String(v.value); }
+        else if (v && typeof v === 'object') Object.assign(r, flattenObj(v, key));
+        else if (v != null) r[key] = String(v);
+    }
+    return r;
+};
+const findMainTable = (obj) => {
+    let arr = [];
+    const s = (x) => { if (Array.isArray(x)) { if (x.length > arr.length) arr = x; } else if (x && typeof x === 'object' && !('value' in x)) Object.values(x).forEach(s); };
+    s(obj);
+    return arr;
+};
+const parseFieldsSafe = (f) => {
+    if (!f) return {};
+    const r = {};
+    for (const [k, v] of Object.entries(f)) {
+        if (typeof v === 'string') { try { r[k] = JSON.parse(v); } catch { r[k] = v; } } else r[k] = v;
+    }
+    return r;
+};
 
 const formatCurrency = (value) => {
     if (value == null || value === '' || value === '-' || !Number(value)) return value || '-';
@@ -139,7 +185,130 @@ const ResultViewer = () => {
         );
     };
 
+    const renderTextExtract = (doc, idx) => {
+        const rawText = (doc.fields || {}).raw_text || '';
+        return (
+            <div key={idx} className="mb-4">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        <AlignLeft className="w-5 h-5 text-orange-500" />
+                        <h2 className="text-lg font-bold text-slate-900">Извлечённый текст</h2>
+                    </div>
+                    <button
+                        onClick={() => { navigator.clipboard.writeText(rawText); toast.success('Текст скопирован!'); }}
+                        className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg
+                            bg-orange-50 border border-orange-200 text-orange-700 hover:bg-orange-100 transition-colors">
+                        <Copy className="w-3.5 h-3.5" /> Копировать всё
+                    </button>
+                </div>
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    {rawText ? (
+                        <pre className="p-5 text-sm text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">
+                            {rawText}
+                        </pre>
+                    ) : (
+                        <p className="p-5 text-sm text-slate-400 italic">Текст не извлечён</p>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    const CopyBtn = ({ id, text }) => (
+        <button
+            onClick={() => copyToClipboard(id, text)}
+            className="shrink-0 h-6 px-2 inline-flex items-center gap-1 text-xs font-medium text-slate-500
+                bg-white border border-slate-200 rounded hover:border-sky-400 hover:text-sky-600
+                transition-colors shadow-sm"
+        >
+            {copiedKey === id ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+        </button>
+    );
+
+    const renderClosingDoc = (doc, idx) => {
+        const structured = parseFieldsSafe(doc.fields || {});
+        // Exclude visual_marks from flat lookups and table search
+        // (LLM sometimes stores them inside structured, which breaks findMainTable)
+        const { visual_marks: _vm, ...fieldsData } = structured;
+        const flat = flattenObj(fieldsData);
+        // Prefer the explicit 'items' key; only fall back to findMainTable if absent
+        const table = (Array.isArray(fieldsData.items) && fieldsData.items.length > 0)
+            ? fieldsData.items
+            : findMainTable(fieldsData);
+
+        const org = getValue(flat, ['buyer_inn','инн_покупателя','инн_заказчика','покупатель_инн','buyer']);
+        const contrINN = getValue(flat, ['seller_inn','инн_продавца','инн_исполнителя','продавца_инн','seller']);
+        const docNum = getValue(flat, ['document_number','номер_документа','номер_счета','номер']);
+        const docSum = getValue(flat, ['total_amount','amount','total','сумма_документа','итого']);
+        const contrNum = getValue(flat, ['contract_number','номер_договора','договор_номер']);
+        const docDate = getValue(flat, ['document_date','дата_документа','дата']);
+        const vatRate = getValue(flat, ['vat_rate','ставка_ндс','ндс_ставка']);
+        const contract = getValue(flat, ['contract_title','договор','основание']);
+
+        const requisitesText = [
+            `Контрагент: ${contrINN || '-'}`,
+            `Номер документа: ${docNum || '-'}`,
+            `Сумма документа: ${docSum || '-'}`,
+            `Номер договора: ${contrNum || '-'}`,
+        ].join('\n');
+
+        const tableText = table.length > 0 ? table.map(item => {
+            const f = flattenObj(item);
+            const name = getValue(f, ['name','description','наименование','товар','услуга']) || '-';
+            const qty  = getValue(f, ['quantity','количество','кол-во','qty']) || '-';
+            const price= getValue(f, ['price_without_vat','unit_price','price','цена']) || '-';
+            const sub  = getValue(f, ['amount_without_vat','subtotal','сумма_без_ндс','сумма']) || '-';
+            const vat  = getValue(f, ['vat_rate','ставка_ндс']) || '-';
+            const tax  = getValue(f, ['vat_amount','сумма_ндс','ндс']) || '-';
+            const tot  = getValue(f, ['amount_with_vat','total','total_amount','итого']) || '-';
+            return `Наименование: ${name}, Кол-во: ${qty}, Цена: ${price}, Без налога: ${sub}, НДС%: ${vat}, НДС: ${tax}, Итого: ${tot}`;
+        }).join('\n') : '-';
+
+        const cols = [
+            { label: 'Организация (ИНН покупателя)', value: org || '-', id: `cd-org-${idx}` },
+            { label: 'Реквизиты контрагента', value: requisitesText, id: `cd-req-${idx}`, multi: true },
+            { label: 'Дата документа', value: docDate || '-', id: `cd-date-${idx}` },
+            { label: 'Ставка НДС', value: vatRate || '-', id: `cd-vat-${idx}` },
+            { label: 'Договор', value: contract || '-', id: `cd-contr-${idx}` },
+            { label: 'Вид документа', value: doc.document_type || '-', id: `cd-type-${idx}` },
+            { label: 'Таблица товаров / услуг', value: tableText, id: `cd-table-${idx}`, multi: true },
+        ];
+
+        return (
+            <div key={idx} className="mb-6">
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-bold text-slate-900">{doc.document_type || 'Документ'}</h2>
+                    {doc.confidence && (
+                        <span className="text-xs font-bold px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full">
+                            Точность: {(doc.confidence * 100).toFixed(0)}%
+                        </span>
+                    )}
+                </div>
+                <div className="space-y-2">
+                    {cols.map(col => (
+                        <div key={col.id} className="bg-white rounded-xl border border-slate-200 px-4 py-3 flex items-start gap-3">
+                            <div className="flex-1 min-w-0">
+                                <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-1">{col.label}</div>
+                                {col.multi ? (
+                                    <pre className="text-sm text-slate-800 whitespace-pre-wrap font-sans leading-relaxed">
+                                        {col.value}
+                                    </pre>
+                                ) : (
+                                    <div className="text-sm font-medium text-slate-800">{col.value}</div>
+                                )}
+                            </div>
+                            <CopyBtn id={col.id} text={col.value} />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
     const renderDocumentData = (doc, idx) => {
+        if (doc.document_type === 'text-extract') {
+            return renderTextExtract(doc, idx);
+        }
         const structured = parseFields(doc.fields || {});
 
         // Categorize dynamic fields
@@ -259,7 +428,7 @@ const ResultViewer = () => {
                     >
                         <ArrowLeft className="w-4 h-4" /> Назад
                     </button>
-                    {result?.documents?.length > 0 && (
+                    {result?.module === 'closing-docs' && result?.documents?.length > 0 && (
                         <button
                             onClick={() => exportClosingDocsToExcel(result.documents)}
                             className="flex items-center gap-2 px-3 py-2 bg-emerald-50 text-emerald-700 text-sm font-semibold rounded-lg hover:bg-emerald-100 transition-colors border border-emerald-200 shadow-sm"
@@ -330,6 +499,8 @@ const ResultViewer = () => {
                                 <AlertCircle className="w-12 h-12 text-slate-300" />
                                 <span>Нет извлеченных данных.</span>
                             </div>
+                        ) : result?.module === 'closing-docs' ? (
+                            documents.map((doc, docIdx) => renderClosingDoc(doc, docIdx))
                         ) : (
                             documents.map((doc, docIdx) => renderDocumentData(doc, docIdx))
                         )}

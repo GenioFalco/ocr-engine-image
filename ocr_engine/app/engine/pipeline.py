@@ -52,6 +52,37 @@ class OCREngine:
         else:
             raise ValueError(f"Unsupported provider: {active_model.provider}")
 
+    def _validate_inn_kpp(self, data):
+        """Recursively validate INN/KPP values:
+        - INN юр.лица = 10 цифр, ИП = 12 цифр; anything else → null
+        - KPP = exactly 9 цифр; anything else → null
+        Fields with 6 digits (postal code) are especially common mistakes.
+        """
+        if not isinstance(data, dict):
+            return data
+        for key, val in data.items():
+            key_lower = key.lower()
+            if isinstance(val, dict):
+                if 'value' in val:
+                    raw = str(val.get('value') or '').strip()
+                    digits = ''.join(c for c in raw if c.isdigit())
+                    if raw and key_lower == 'inn':
+                        if len(digits) not in (10, 12):
+                            logger.warning(f"INN validation failed: '{raw}' has {len(digits)} digits (expected 10 or 12) → setting null")
+                            val['value'] = None
+                    elif raw and key_lower == 'kpp':
+                        if len(digits) != 9:
+                            logger.warning(f"KPP validation failed: '{raw}' has {len(digits)} digits (expected 9) → setting null")
+                            val['value'] = None
+                else:
+                    data[key] = self._validate_inn_kpp(val)
+            elif isinstance(val, list):
+                data[key] = [
+                    self._validate_inn_kpp(item) if isinstance(item, dict) else item
+                    for item in val
+                ]
+        return data
+
     def log(self, stage: str, message: str):
         logger.info(f"[{self.job_id}] {stage}: {message}")
         log_entry = Log(job_id=self.job_id, stage=stage, message=message)
@@ -69,6 +100,90 @@ class OCREngine:
         import hashlib
         dump = json.dumps(data, sort_keys=True)
         return hashlib.sha256(dump.encode('utf-8')).hexdigest()
+
+    def run_text_extract(self, pdf_path: str):
+        """Simplified pipeline for text-extract module: render each page → LLM → save raw text."""
+        import fitz
+        import time
+
+        job = self.db.query(ProcessingJob).filter(ProcessingJob.id == self.job_id).first()
+        job.status = "processing"
+        job.started_at = datetime.utcnow()
+        self.db.commit()
+
+        self.log("INIT", f"[text-extract] Starting for: {pdf_path}")
+
+        try:
+            with open(pdf_path, "rb") as f:
+                pdf_bytes = f.read()
+
+            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+            num_pages = len(doc)
+            doc.close()
+
+            self.log("PDF_LOAD", f"[text-extract] Pages: {num_pages}")
+
+            # Render ALL pages to JPEG and send together in one LLM call (max 10 pages)
+            all_images = []
+            pages_to_render = min(num_pages, 10)
+            self.detail_log("RENDER_START", f"Rendering {pages_to_render} pages for text extraction")
+            t0 = time.time()
+
+            for i in range(pages_to_render):
+                doc_t = fitz.open(stream=pdf_bytes, filetype="pdf")
+                mat = fitz.Matrix(2.0, 2.0)
+                pix = doc_t[i].get_pixmap(matrix=mat, alpha=False)
+                jpeg_bytes = pix.tobytes("jpeg")
+                doc_t.close()
+                all_images.append({"bytes": jpeg_bytes, "name": f"page_{i+1}.jpg"})
+
+            t_render = time.time() - t0
+            self.detail_log("RENDER_TIME", f"Rendered {pages_to_render} pages in {t_render:.2f}s")
+
+            # One LLM call for all pages
+            self.detail_log("LLM_START", f"Sending {pages_to_render} pages to Qwen for full text extraction")
+            t1 = time.time()
+            raw_text = self.llm_provider.extract_raw_text(all_images)
+            t_llm = time.time() - t1
+            self.detail_log("LLM_DONE", f"Text extraction done in {t_llm:.2f}s, chars: {len(raw_text)}")
+
+            # Save as a Document + ExtractedResult with single raw_text field
+            document = Document(
+                job_id=self.job_id,
+                document_type="text-extract",
+                confidence=1.0,
+                hash=str(self.job_id),
+                is_duplicate=False
+            )
+            self.db.add(document)
+            self.db.commit()
+
+            er = ExtractedResult(
+                document_id=document.id,
+                fields_json={"raw_text": raw_text},
+                stamps_json=[],
+                signatures_json=[],
+                raw_llm_response=raw_text[:2000],
+                validation_status="valid"
+            )
+            self.db.add(er)
+            self.db.commit()
+
+            job.status = "done"
+            job.finished_at = datetime.utcnow()
+            job.total_processing_time = (job.finished_at - job.started_at).total_seconds()
+            self.db.commit()
+            self.log("COMPLETE", f"[text-extract] Done. {num_pages} pages processed.")
+
+        except Exception as e:
+            import traceback
+            self.detail_log("ERROR", traceback.format_exc())
+            job = self.db.query(ProcessingJob).filter(ProcessingJob.id == self.job_id).first()
+            job.status = "failed"
+            job.error_message = str(e)
+            job.finished_at = datetime.utcnow()
+            self.db.commit()
+            self.log("ERROR", str(e))
 
     def run(self, pdf_path: str):
         try:
@@ -307,7 +422,10 @@ class OCREngine:
                 # LLM Call
                 extraction_result = self.llm_provider.extract_document(group_images_data, json_schema)
                 self.detail_log("EXTRACTION_RESULT", f"Doc {doc_type_name} Raw LLM Response:\n{extraction_result.raw_response}")
-                
+
+                # Post-process: validate INN/KPP digit counts
+                extraction_result.fields = self._validate_inn_kpp(extraction_result.fields)
+
                 # Validation
                 is_valid = self.llm_provider.validate_extraction(extraction_result, group_images_data)
                 

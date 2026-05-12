@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     # Frontend URL — куда редиректить после успешного входа через SAML
     FRONTEND_URL: str = "http://localhost:5173"
 
+
     class Config:
         env_file = ".env"
 

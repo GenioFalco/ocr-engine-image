@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Scale, ArrowRight, Layers, Scan, AlignLeft } from 'lucide-react';
+import { FileText, Scale, ArrowRight, Scan, AlignLeft } from 'lucide-react';
 
 const MODULES = [
     {
