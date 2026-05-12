@@ -101,7 +101,9 @@ export const exportClosingDocsToExcel = (documents) => {
 
         // --- Остальные поля ---
         const docDate = getValue(flatData, ['document_date', 'дата_документа', 'дата']);
-        const vatRate = getValue(flatData, ['vat_rate', 'ставка_ндс', 'ндс_ставка']);
+        // vat_rate often lives only inside items[0] — fallback there
+        const vatRate = getValue(flatData, ['vat_rate', 'ставка_ндс', 'ндс_ставка'])
+            || (tableArr.length > 0 ? getValue(flattenObject(tableArr[0]), ['vat_rate', 'ставка_ндс', 'ндс_ставка']) : '');
         const contract = getValue(flatData, ['contract_title', 'договор', 'основание']);
 
         // --- Таблица товаров ---
