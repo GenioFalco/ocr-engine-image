@@ -121,13 +121,19 @@ class QwenProvider(BaseLLM):
 2. ЧИСТОТА ДАННЫХ:
    - В поле `name` (название) пиши ТОЛЬКО название компании/ИП (без адреса, без реквизитов!). Адрес пиши СТРОГО в поле `address`. Не смешивай их.
    - В полях типа `document_number` (номер документа) пиши ТОЛЬКО сами цифры/буквы номера. Без символа "№", без слова "номер".
-   - В ИНН и КПП пиши строго цифры.
    - В массив `items` (список товаров/услуг) добавляй ТОЛЬКО реальные строки с конкретными позициями. КАТЕГОРИЧЕСКИ игнорируй заголовки таблиц, подзаголовки групп (например, "Выполненные работы:", "Товары:") и итоговые строки.
    - ОГРАНИЧЕНИЕ ДЛИНЫ: Если в документе огромная таблица (более 30 позиций), извлеки ТОЛЬКО ПЕРВЫЕ 30 строк. НЕ извлекай сотни строк, иначе твой ответ оборвется из-за лимита токенов, и JSON будет сломан!
-3. ЗАПРЕЩАЕТСЯ писать "ООО 'Пример'", "123456789" и любые тестовые данные. Если на скане нет реального поля, пиши `null`.
-4. Верни чистый JSON-объект, строго соответствующий схеме. Обязательно соблюдай структуру иерархии.
-5. ВАЖНО: Если в схеме есть поле `raw_text`, ты ОБЯЗАН вернуть его ПУСТЫМ (""). КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО извлекать весь текст документа.
-6. Верни ТОЛЬКО JSON-объект. Больше ни единого слова, без преамбул. Без маркдауна (без ```json).
+3. ПРАВИЛА ДЛЯ ИНН / КПП (КРИТИЧЕСКИ ВАЖНО — НЕ ПУТАЙ):
+   - ИНН юридического лица = РОВНО 10 цифр (например: 7701234567)
+   - ИНН физического лица / ИП = РОВНО 12 цифр (например: 770112345678)
+   - КПП = РОВНО 9 цифр (например: 770101001)
+   - ПОЧТОВЫЙ ИНДЕКС = РОВНО 6 цифр (например: 601900) — это ЧАСТЬ АДРЕСА, НИКОГДА не пиши индекс в поле `inn` или `kpp`!
+   - Если в адресе стоит 6-значное число — это индекс, пиши его в поле `address`, НЕ в `inn`.
+   - Если не можешь точно определить ИНН или КПП — пиши `null`, не угадывай.
+4. ЗАПРЕЩАЕТСЯ писать "ООО 'Пример'", "123456789" и любые тестовые данные. Если на скане нет реального поля, пиши `null`.
+5. Верни чистый JSON-объект, строго соответствующий схеме. Обязательно соблюдай структуру иерархии.
+6. ВАЖНО: Если в схеме есть поле `raw_text`, ты ОБЯЗАН вернуть его ПУСТЫМ (""). КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО извлекать весь текст документа.
+7. Верни ТОЛЬКО JSON-объект. Больше ни единого слова, без преамбул. Без маркдауна (без ```json).
             """
             
             message_content = self._prepare_image_message(prompt, limited_data)
@@ -215,6 +221,15 @@ class QwenProvider(BaseLLM):
             elif "fields" in data and isinstance(data["fields"], dict):
                 data = data["fields"]
 
+            # Second-pass: pop visual_marks if LLM put them inside structured/fields
+            if "visual_marks" in data:
+                vmarks2 = data.pop("visual_marks", {})
+                if isinstance(vmarks2, dict):
+                    extra_stamps = vmarks2.get("seals", [])
+                    extra_sigs   = vmarks2.get("signatures", [])
+                    if isinstance(extra_stamps, list): stamps.extend(extra_stamps)
+                    if isinstance(extra_sigs,   list): signatures.extend(extra_sigs)
+
             for s in stamps:
                 if isinstance(s, str):
                     stamps[stamps.index(s)] = {"value": s}
@@ -236,8 +251,36 @@ class QwenProvider(BaseLLM):
     def validate_extraction(self, extraction_result: ExtractionResult, images_data: List[Dict[str, Any]]) -> bool:
         if not extraction_result.fields:
             return False
-            
+
         data = extraction_result.fields
         if not data.get("document_date") and not data.get("document_number") and not data.get("amounts"):
              return False
         return True
+
+    def extract_raw_text(self, images_data: List[Dict[str, Any]]) -> str:
+        """Extract all text from document pages (sent together) using Qwen VL.
+        Returns a single string with all text from all pages."""
+        if not self.client:
+            return ""
+        try:
+            num_pages = len(images_data)
+            page_hint = f"Документ содержит {num_pages} стр." if num_pages > 1 else "Документ — 1 страница."
+            prompt = (
+                f"{page_hint} "
+                "Извлеки ВЕСЬ текст со всех страниц документа дословно, сохраняя структуру строк и абзацев. "
+                "Включай: печатный текст, рукописный текст, текст в таблицах, заголовки, подписи, штампы — всё что видишь. "
+                "Если текст нечёткий или рукописный — пиши максимально точно как можешь прочитать. "
+                "Если несколько страниц — разделяй их строкой вида '=== Страница N ==='. "
+                "Верни ТОЛЬКО сам текст. Без пояснений, без преамбул, без markdown."
+            )
+            message_content = self._prepare_image_message(prompt, images_data)
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": message_content}],
+                temperature=0.0,
+                max_tokens=self.max_tokens
+            )
+            return response.choices[0].message.content or ""
+        except Exception as e:
+            logger.error(f"Qwen extract_raw_text error: {e}")
+            return f"[Ошибка извлечения текста: {e}]"

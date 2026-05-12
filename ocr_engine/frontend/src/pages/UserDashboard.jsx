@@ -4,7 +4,7 @@ import api from '../api';
 import { toast } from '../components/Toast';
 import {
     Upload, X, FileText, Scale, Scan, CheckCircle, AlertCircle,
-    RefreshCw, Loader2, History, ChevronRight, ArrowLeft
+    RefreshCw, Loader2, History, ChevronRight, ArrowLeft, AlignLeft
 } from 'lucide-react';
 
 // ── Module config ─────────────────────────────────────────────────────────────
@@ -32,6 +32,14 @@ const MODULES = {
         bg: 'bg-emerald-50',
         border: 'border-emerald-200',
         badge: 'bg-emerald-100 text-emerald-700',
+    },
+    'text-extract': {
+        title: 'Извлечение текста',
+        Icon: AlignLeft,
+        color: 'text-orange-600',
+        bg: 'bg-orange-50',
+        border: 'border-orange-200',
+        badge: 'bg-orange-100 text-orange-700',
     },
 };
 
@@ -235,7 +243,10 @@ const UserDashboard = () => {
                         <button onClick={handleUpload}
                             className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white text-sm font-semibold
                                 rounded-xl hover:bg-slate-700 transition-colors shadow-sm">
-                            <Upload className="w-4 h-4" /> Распознать все ({selectedFiles.length})
+                            <Upload className="w-4 h-4" />
+                            {moduleId === 'text-extract'
+                                ? `Извлечь текст (${selectedFiles.length})`
+                                : `Распознать все (${selectedFiles.length})`}
                         </button>
                         <button onClick={() => setSelectedFiles([])}
                             className="text-sm text-slate-400 hover:text-slate-600">Очистить</button>

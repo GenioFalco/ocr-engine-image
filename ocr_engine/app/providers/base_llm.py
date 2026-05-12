@@ -33,3 +33,7 @@ class BaseLLM(ABC):
     def validate_extraction(self, extraction_result: ExtractionResult, images_data: List[Dict[str, Any]]) -> bool:
         """Validate the extraction result."""
         pass
+
+    def extract_raw_text(self, images_data: List[Dict[str, Any]]) -> str:
+        """Extract all raw text from page images using LLM. Override in subclasses for efficiency."""
+        raise NotImplementedError("extract_raw_text not implemented for this provider")

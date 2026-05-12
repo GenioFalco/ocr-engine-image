@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Scale, ArrowRight, Layers, Scan } from 'lucide-react';
+import { FileText, Scale, ArrowRight, Scan, AlignLeft } from 'lucide-react';
 
 const MODULES = [
     {
@@ -38,6 +38,18 @@ const MODULES = [
         lightText: 'text-emerald-700',
         iconBg: 'bg-emerald-100',
         examples: ['Любой документ', 'Скан', 'Таблица', 'Текст'],
+    },
+    {
+        id: 'text-extract',
+        title: 'Извлечение текста',
+        subtitle: 'Весь текст документа без структуры и классификации',
+        icon: AlignLeft,
+        gradient: 'from-orange-500 to-amber-600',
+        lightBg: 'bg-orange-50',
+        lightBorder: 'border-orange-200',
+        lightText: 'text-orange-700',
+        iconBg: 'bg-orange-100',
+        examples: ['Трудовая книжка', 'Рукописный текст', 'Скан', 'Любой документ'],
     },
 ];
 
