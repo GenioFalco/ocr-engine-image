@@ -65,18 +65,25 @@ def _get_saml_auth(request_data: dict):
 
 def _prepare_saml_request(request: Request, body: bytes = b"") -> dict:
     """Преобразует FastAPI Request в формат понятный python3-saml."""
+    from urllib.parse import parse_qs
+
+    # Корректное определение HTTPS за nginx reverse-proxy
+    forwarded_proto = request.headers.get("x-forwarded-proto", "")
+    is_https = forwarded_proto == "https" or request.url.scheme == "https"
+
+    # Правильный URL-decode POST-тела (SAMLResponse — base64 с =, %XX, + и т.д.)
+    post_data = {}
+    if body:
+        for key, values in parse_qs(body.decode("utf-8"), keep_blank_values=True).items():
+            post_data[key] = values[0] if values else ""
+
     return {
-        "https": "on" if request.url.scheme == "https" else "off",
+        "https": "on" if is_https else "off",
         "http_host": request.headers.get("host", ""),
-        "server_port": request.url.port or (443 if request.url.scheme == "https" else 80),
+        "server_port": 443 if is_https else 80,
         "script_name": request.url.path,
         "get_data": dict(request.query_params),
-        "post_data": dict(
-            (k, v)
-            for k, v in (
-                item.split("=", 1) for item in body.decode().split("&") if "=" in item
-            )
-        ) if body else {},
+        "post_data": post_data,
     }
 
 
@@ -204,4 +211,8 @@ async def saml_metadata(request: Request):
     if errors:
         raise HTTPException(status_code=500, detail=f"Ошибка SP metadata: {errors}")
 
-    return Response(content=metadata, media_type="application/xml")
+    return Response(
+        content=metadata,
+        media_type="application/xml",
+        headers={"Content-Disposition": 'attachment; filename="sp-metadata.xml"'},
+    )
