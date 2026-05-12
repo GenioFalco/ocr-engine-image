@@ -236,8 +236,9 @@ const ResultViewer = () => {
             ? fieldsData.items
             : findMainTable(fieldsData);
 
-        const org = getValue(flat, ['buyer_inn','инн_покупателя','инн_заказчика','покупатель_инн','buyer']);
-        const contrINN = getValue(flat, ['seller_inn','инн_продавца','инн_исполнителя','продавца_инн','seller']);
+        // Ищем строго ИНН — убраны общие 'buyer'/'seller' которые матчат и name, и address
+        const org      = getValue(flat, ['buyer_inn','buyer inn','инн_покупателя','инн_заказчика','покупатель_инн']);
+        const contrINN = getValue(flat, ['seller_inn','seller inn','инн_продавца','инн_исполнителя','продавца_инн','consignor_inn','consignor inn']);
         const docNum = getValue(flat, ['document_number','номер_документа','номер_счета','номер']);
         const docSum = getValue(flat, ['total_amount','amount','total','сумма_документа','итого']);
         const contrNum = getValue(flat, ['contract_number','номер_договора','договор_номер']);
