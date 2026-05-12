@@ -84,10 +84,11 @@ export const exportClosingDocsToExcel = (documents) => {
         const flatData = flattenObject(fieldsData);
 
         // --- Организация (ИНН Покупателя) ---
-        const org = getValue(flatData, ['buyer_inn', 'инн_покупателя', 'инн_заказчика', 'покупатель_инн', 'buyer']);
+        // Ищем строго ИНН — убраны общие 'buyer'/'seller' которые матчат и name, и address
+        const org = getValue(flatData, ['buyer_inn', 'buyer inn', 'инн_покупателя', 'инн_заказчика', 'покупатель_инн']);
 
         // --- Реквизиты Контрагента (Объединенная колонка) ---
-        const contrINN = getValue(flatData, ['seller_inn', 'инн_продавца', 'инн_исполнителя', 'продавца_инн', 'seller']);
+        const contrINN = getValue(flatData, ['seller_inn', 'seller inn', 'инн_продавца', 'инн_исполнителя', 'продавца_инн', 'consignor_inn', 'consignor inn']);
         const docNum = getValue(flatData, ['document_number', 'номер_документа', 'номер_счета', 'номер']);
         const docSum = getValue(flatData, ['total_amount', 'amount', 'total', 'сумма_документа', 'итого']);
         const contrNum = getValue(flatData, ['contract_number', 'номер_договора', 'договор_номер']);
