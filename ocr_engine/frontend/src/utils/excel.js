@@ -99,18 +99,18 @@ export const exportClosingDocsToExcel = (documents) => {
             `Номер договора: ${contrNum || '-'}`
         ].join('\n');
 
+        // --- Таблица товаров (определяем раньше — нужна для vatRate) ---
+        // Prefer the explicit 'items' key; fall back to findMainTable if absent
+        const tableArr = (Array.isArray(fieldsData.items) && fieldsData.items.length > 0)
+            ? fieldsData.items
+            : findMainTable(fieldsData);
+
         // --- Остальные поля ---
         const docDate = getValue(flatData, ['document_date', 'дата_документа', 'дата']);
         // vat_rate often lives only inside items[0] — fallback there
         const vatRate = getValue(flatData, ['vat_rate', 'ставка_ндс', 'ндс_ставка'])
             || (tableArr.length > 0 ? getValue(flattenObject(tableArr[0]), ['vat_rate', 'ставка_ндс', 'ндс_ставка']) : '');
         const contract = getValue(flatData, ['contract_title', 'договор', 'основание']);
-
-        // --- Таблица товаров ---
-        // Prefer the explicit 'items' key; fall back to findMainTable if absent
-        const tableArr = (Array.isArray(fieldsData.items) && fieldsData.items.length > 0)
-            ? fieldsData.items
-            : findMainTable(fieldsData);
         let tableString = '';
         if (tableArr.length > 0) {
             tableString = tableArr.map(item => {
