@@ -194,10 +194,36 @@ async def get_preview(
     return FileResponse(file_path, media_type="application/pdf")
 
 @router.get("/jobs")
-async def get_user_jobs(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """Fetch all jobs for the currently authenticated user."""
-    jobs = db.query(ProcessingJob).filter(ProcessingJob.user_id == current_user.id).order_by(ProcessingJob.created_at.desc()).all()
-    return [{"id": str(j.id), "mode": j.mode, "module": j.module, "status": j.status, "created_at": j.created_at, "error_message": j.error_message} for j in jobs]
+async def get_user_jobs(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    page: int = 1,
+    per_page: int = 50,
+    module: str = None,
+    date: str = None,  # YYYY-MM-DD
+):
+    """Fetch jobs for the current user with optional pagination and filters."""
+    query = db.query(ProcessingJob).filter(ProcessingJob.user_id == current_user.id)
+    if module:
+        query = query.filter(ProcessingJob.module == module)
+    if date:
+        try:
+            from datetime import date as date_type
+            d = datetime.strptime(date, "%Y-%m-%d").date()
+            query = query.filter(func.date(ProcessingJob.created_at) == d)
+        except ValueError:
+            pass
+    total = query.count()
+    per_page = max(1, min(per_page, 200))
+    page = max(1, page)
+    jobs = query.order_by(ProcessingJob.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+    return {
+        "items": [{"id": str(j.id), "mode": j.mode, "module": j.module, "status": j.status, "created_at": j.created_at, "error_message": j.error_message} for j in jobs],
+        "total": total,
+        "page": page,
+        "pages": max(1, (total + per_page - 1) // per_page),
+        "per_page": per_page,
+    }
 
 @router.get("/admin/jobs")
 async def get_all_jobs(db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
