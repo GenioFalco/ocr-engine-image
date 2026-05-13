@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api';
-import { ArrowLeft, Check, Copy, AlertCircle, RefreshCw, FileText, Building, List, Download } from 'lucide-react';
+import { ArrowLeft, Check, Copy, AlertCircle, RefreshCw, FileText, Building, List, Download, Star } from 'lucide-react';
 import { exportClosingDocsToExcel } from '../utils/excel';
 
 // ── Closing-docs helpers (same logic as ResultViewer / excel.js) ──────────────
@@ -275,6 +275,21 @@ const BatchViewer = () => {
     const [errors, setErrors] = useState({});    // jobId → string
     const [copiedKey, setCopiedKey] = useState(null);
 
+    // ── Per-job ratings ───────────────────────────────────────────────────────
+    const [ratings, setRatings] = useState({});          // jobId → 1-5
+    const [hoverRating, setHoverRating] = useState({});  // jobId → 1-5
+    const [submittingRating, setSubmittingRating] = useState({}); // jobId → bool
+
+    const handleRating = async (jobId, val) => {
+        if (submittingRating[jobId]) return;
+        setSubmittingRating(r => ({ ...r, [jobId]: true }));
+        try {
+            await api.post('/feedback', { job_id: jobId, rating: val });
+            setRatings(r => ({ ...r, [jobId]: val }));
+        } catch { }
+        finally { setSubmittingRating(r => ({ ...r, [jobId]: false })); }
+    };
+
     const onCopy = (key, text) => {
         navigator.clipboard.writeText(String(text));
         setCopiedKey(key); setTimeout(() => setCopiedKey(null), 2000);
@@ -286,6 +301,8 @@ const BatchViewer = () => {
         try {
             const { data } = await api.get(`/result/${jobId}`);
             setResults(r => ({ ...r, [jobId]: data }));
+            // Pre-fill existing rating if the job already has one
+            if (data.rating) setRatings(r => ({ ...r, [jobId]: data.rating }));
         } catch { setErrors(e => ({ ...e, [jobId]: 'Ошибка загрузки' })); }
         finally { setLoading(l => ({ ...l, [jobId]: false })); }
     };
@@ -345,6 +362,8 @@ const BatchViewer = () => {
                             const res = results[id];
                             const docType = res?.documents?.[0]?.document_type || `Файл ${i + 1}`;
                             const isActive = i === selectedIdx;
+                            const jobRating = ratings[id] || 0;
+                            const jobHover = hoverRating[id] || 0;
                             return (
                                 <button key={id} onClick={() => setSelectedIdx(i)}
                                     className={`text-left px-3 py-2.5 rounded-lg text-xs font-medium transition-colors w-full
@@ -353,6 +372,26 @@ const BatchViewer = () => {
                                     <div className={`text-[10px] mt-0.5 truncate font-mono ${isActive ? 'text-slate-400' : 'text-slate-400'}`}>{id.substring(0, 8)}…</div>
                                     {loading[id] && <div className="mt-1 text-[10px] text-blue-400">загрузка…</div>}
                                     {errors[id] && <div className="mt-1 text-[10px] text-red-400">ошибка</div>}
+                                    {res && !loading[id] && !errors[id] && (
+                                        <div className="flex items-center gap-0.5 mt-1.5" onClick={e => e.stopPropagation()}>
+                                            {[1,2,3,4,5].map(val => (
+                                                <button
+                                                    key={val}
+                                                    disabled={submittingRating[id]}
+                                                    onClick={() => handleRating(id, val)}
+                                                    onMouseEnter={() => setHoverRating(h => ({ ...h, [id]: val }))}
+                                                    onMouseLeave={() => setHoverRating(h => ({ ...h, [id]: 0 }))}
+                                                    className="focus:outline-none transition-transform hover:scale-110 disabled:opacity-40"
+                                                >
+                                                    <Star className={`w-3 h-3 transition-colors ${
+                                                        (jobHover || jobRating) >= val
+                                                            ? 'fill-amber-400 text-amber-400'
+                                                            : isActive ? 'text-slate-500' : 'text-slate-300'
+                                                    }`} />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
                                 </button>
                             );
                         })}
@@ -375,7 +414,33 @@ const BatchViewer = () => {
                 </div>
 
                 {/* Results panel */}
-                <div className="flex-1 overflow-y-auto bg-slate-50/40 p-6">
+                <div className="flex-1 flex flex-col min-h-0 bg-slate-50/40">
+                {/* Rating bar for current job */}
+                {currentId && currentResult && !isLoading && (
+                    <div className="px-5 py-2 bg-white border-b border-slate-100 flex items-center gap-2 shrink-0">
+                        <span className="text-xs text-slate-400 font-medium">Оценить результат:</span>
+                        {[1,2,3,4,5].map(val => (
+                            <button
+                                key={val}
+                                disabled={submittingRating[currentId]}
+                                onClick={() => handleRating(currentId, val)}
+                                onMouseEnter={() => setHoverRating(h => ({ ...h, [currentId]: val }))}
+                                onMouseLeave={() => setHoverRating(h => ({ ...h, [currentId]: 0 }))}
+                                className="focus:outline-none transition-transform hover:scale-110 disabled:opacity-40"
+                            >
+                                <Star className={`w-4 h-4 transition-colors ${
+                                    ((hoverRating[currentId] || 0) || (ratings[currentId] || 0)) >= val
+                                        ? 'fill-amber-400 text-amber-400'
+                                        : 'text-slate-300'
+                                }`} />
+                            </button>
+                        ))}
+                        {ratings[currentId] && (
+                            <span className="text-xs text-slate-400 ml-1">({ratings[currentId]}/5)</span>
+                        )}
+                    </div>
+                )}
+                <div className="flex-1 overflow-y-auto p-6">
                     {isLoading && (
                         <div className="h-48 flex flex-col items-center justify-center gap-3">
                             <RefreshCw className="w-7 h-7 text-primary animate-spin" />
@@ -397,7 +462,8 @@ const BatchViewer = () => {
                                 <DocResult key={idx} doc={doc} idx={`${selectedIdx}-${idx}`} copiedKey={copiedKey} onCopy={onCopy} />
                             ))
                     )}
-                </div>
+                </div>{/* overflow-y-auto */}
+                </div>{/* flex-1 flex-col */}
             </div>
         </div>
     );

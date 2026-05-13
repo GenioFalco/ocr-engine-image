@@ -197,7 +197,7 @@ async def get_preview(
 async def get_user_jobs(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Fetch all jobs for the currently authenticated user."""
     jobs = db.query(ProcessingJob).filter(ProcessingJob.user_id == current_user.id).order_by(ProcessingJob.created_at.desc()).all()
-    return [{"id": j.id, "mode": j.mode, "status": j.status, "created_at": j.created_at, "error_message": j.error_message} for j in jobs]
+    return [{"id": str(j.id), "mode": j.mode, "module": j.module, "status": j.status, "created_at": j.created_at, "error_message": j.error_message} for j in jobs]
 
 @router.get("/admin/jobs")
 async def get_all_jobs(db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):

@@ -4,7 +4,8 @@ import api from '../api';
 import { toast } from '../components/Toast';
 import {
     Upload, X, FileText, Scale, Scan, CheckCircle, AlertCircle,
-    RefreshCw, Loader2, History, ChevronRight, ArrowLeft, AlignLeft
+    RefreshCw, Loader2, History, ChevronRight, ArrowLeft, AlignLeft,
+    Package,
 } from 'lucide-react';
 
 // ── Module config ─────────────────────────────────────────────────────────────
@@ -58,6 +59,21 @@ const statusIcon = (s) => {
 
 const statusLabel = { queued: 'Очередь', processing: 'Обработка…', done: 'Готово', error: 'Ошибка' };
 
+// ── Batch localStorage helpers ────────────────────────────────────────────────
+const BATCHES_KEY = 'ocr_batches';
+
+const saveBatch = (jobIds, module, created_at) => {
+    try {
+        const batches = JSON.parse(localStorage.getItem(BATCHES_KEY) || '[]');
+        batches.unshift({ id: `batch-${Date.now()}`, jobIds, module, created_at });
+        localStorage.setItem(BATCHES_KEY, JSON.stringify(batches.slice(0, 100)));
+    } catch { }
+};
+
+const loadBatches = () => {
+    try { return JSON.parse(localStorage.getItem(BATCHES_KEY) || '[]'); } catch { return []; }
+};
+
 const UserDashboard = () => {
     const navigate = useNavigate();
     const { moduleId } = useParams();
@@ -71,9 +87,10 @@ const UserDashboard = () => {
     const [batch, setBatch]           = useState([]);
     const [uploading, setUploading]   = useState(false);
 
-    const [history, setHistory]       = useState([]);
+    const [history, setHistory]       = useState([]);    // raw jobs from API
     const [histLoading, setHistLoading] = useState(true);
     const [jobNames, setJobNames]     = useState({});
+    const [batches, setBatches]       = useState([]);    // from localStorage
 
     const fetchHistory = async () => {
         setHistLoading(true);
@@ -85,8 +102,47 @@ const UserDashboard = () => {
         try {
             setJobNames(JSON.parse(localStorage.getItem('ocr_job_names') || '{}'));
         } catch { }
+        setBatches(loadBatches());
     };
     useEffect(() => { fetchHistory(); }, []);
+
+    // ── Build unified history items (batches + individual) ───────────────────
+    const historyItems = React.useMemo(() => {
+        if (!history.length) return [];
+
+        // Set of all job IDs that belong to any saved batch
+        const batchedJobIds = new Set(batches.flatMap(b => b.jobIds));
+
+        // Map jobId → job for quick lookup
+        const jobMap = Object.fromEntries(history.map(j => [j.id, j]));
+
+        const items = [];
+        const addedBatchIds = new Set();
+
+        for (const job of history) {
+            const parentBatch = batches.find(b => b.jobIds.includes(job.id));
+            if (parentBatch) {
+                if (!addedBatchIds.has(parentBatch.id)) {
+                    addedBatchIds.add(parentBatch.id);
+                    // Determine overall batch status
+                    const batchJobs = parentBatch.jobIds.map(id => jobMap[id]).filter(Boolean);
+                    const allDone  = batchJobs.every(j => j.status === 'done');
+                    const hasError = batchJobs.some(j => j.status === 'error');
+                    const batchStatus = allDone ? 'done' : hasError ? 'error' : 'processing';
+                    items.push({
+                        type: 'batch',
+                        batch: parentBatch,
+                        status: batchStatus,
+                        date: job.created_at,
+                        count: parentBatch.jobIds.length,
+                    });
+                }
+            } else {
+                items.push({ type: 'job', job });
+            }
+        }
+        return items;
+    }, [history, batches]);
 
     // ── File selection ────────────────────────────────────────────────────────
     const addFiles = (files) => {
@@ -97,7 +153,6 @@ const UserDashboard = () => {
     };
 
     const removeFile = (id) => setSelectedFiles(prev => prev.filter(f => f.id !== id));
-
     const onDrop = (e) => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); };
 
     // ── Upload ────────────────────────────────────────────────────────────────
@@ -113,6 +168,7 @@ const UserDashboard = () => {
 
         const doneJobIds = [];
         let errorCount = 0;
+        const uploadedAt = new Date().toISOString();
 
         for (let i = 0; i < initialBatch.length; i++) {
             const item = initialBatch[i];
@@ -122,14 +178,13 @@ const UserDashboard = () => {
                 const formData = new FormData();
                 formData.append('file', item.file);
                 formData.append('module', moduleId || 'standard');
-                
+
                 const { data } = await api.post('/process', formData, {
                     headers: { 'Content-Type': 'multipart/form-data' },
                 });
                 const jobId = data.job_id;
                 doneJobIds.push(jobId);
 
-                // Save filename to localStorage
                 try {
                     const stored = JSON.parse(localStorage.getItem('ocr_job_names') || '{}');
                     stored[jobId] = item.name;
@@ -158,6 +213,8 @@ const UserDashboard = () => {
         if (doneJobIds.length === 1) {
             navigate(`/result/${doneJobIds[0]}`);
         } else if (doneJobIds.length > 1) {
+            // Save batch to localStorage so history can group them
+            saveBatch(doneJobIds, moduleId || 'standard', uploadedAt);
             navigate(`/batch/${doneJobIds.join(',')}?module=${moduleId || 'standard'}`);
         }
     };
@@ -265,7 +322,7 @@ const UserDashboard = () => {
                             <button
                                 onClick={() => doneIds.length === 1
                                     ? navigate(`/result/${doneIds[0]}`)
-                                    : navigate(`/batch/${doneIds.join(',')}`)}
+                                    : navigate(`/batch/${doneIds.join(',')}?module=${moduleId || 'standard'}`)}
                                 className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-sm
                                     font-semibold rounded-lg hover:bg-emerald-700 transition-colors">
                                 Открыть результаты <ChevronRight className="w-4 h-4" />
@@ -321,33 +378,71 @@ const UserDashboard = () => {
                         <div className="py-10 flex justify-center">
                             <RefreshCw className="w-5 h-5 text-primary animate-spin" />
                         </div>
-                    ) : history.length === 0 ? (
+                    ) : historyItems.length === 0 ? (
                         <p className="py-10 text-center text-slate-400 italic text-sm">Загруженных документов нет</p>
                     ) : (
                         <ul className="divide-y divide-slate-50">
-                            {history.map(job => (
-                                <li key={job.id} onClick={() => navigate(`/result/${job.id}`)}
-                                    className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/60 cursor-pointer transition-colors group">
-                                    <FileText className="w-4 h-4 text-slate-300 shrink-0" />
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium text-slate-700 truncate">
-                                            {jobNames[job.id] || (
-                                                <span className="font-mono text-slate-400 text-xs">
-                                                    {String(job.id).substring(0, 8)}…
-                                                </span>
-                                            )}
-                                        </p>
-                                        <p className="text-xs text-slate-400">{new Date(job.created_at).toLocaleString('ru-RU')}</p>
-                                    </div>
-                                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                                        job.status === 'done'  ? 'bg-emerald-100 text-emerald-700' :
-                                        job.status === 'error' ? 'bg-red-100 text-red-600' :
-                                                                 'bg-blue-100 text-blue-700'}`}>
-                                        {statusLabel[job.status] || job.status}
-                                    </span>
-                                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors" />
-                                </li>
-                            ))}
+                            {historyItems.map((item, idx) => {
+                                if (item.type === 'batch') {
+                                    const { batch: b, status, date, count } = item;
+                                    const bmod = MODULES[b.module] || MODULES['standard'];
+                                    return (
+                                        <li
+                                            key={b.id}
+                                            onClick={() => navigate(`/batch/${b.jobIds.join(',')}?module=${b.module}`)}
+                                            className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/60 cursor-pointer transition-colors group"
+                                        >
+                                            <Package className="w-4 h-4 text-slate-400 shrink-0" />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-medium text-slate-700">
+                                                    Пакет: {count} документ{count === 1 ? '' : count < 5 ? 'а' : 'ов'}
+                                                </p>
+                                                <p className="text-xs text-slate-400">
+                                                    {new Date(date).toLocaleString('ru-RU')}
+                                                    {' · '}
+                                                    <span className={`font-medium ${bmod.color}`}>{bmod.title}</span>
+                                                </p>
+                                            </div>
+                                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                                status === 'done'  ? 'bg-emerald-100 text-emerald-700' :
+                                                status === 'error' ? 'bg-red-100 text-red-600' :
+                                                                     'bg-blue-100 text-blue-700'}`}>
+                                                {statusLabel[status] || status}
+                                            </span>
+                                            <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors" />
+                                        </li>
+                                    );
+                                }
+
+                                // Individual job
+                                const { job } = item;
+                                return (
+                                    <li
+                                        key={job.id}
+                                        onClick={() => navigate(`/result/${job.id}`)}
+                                        className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/60 cursor-pointer transition-colors group"
+                                    >
+                                        <FileText className="w-4 h-4 text-slate-300 shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-slate-700 truncate">
+                                                {jobNames[job.id] || (
+                                                    <span className="font-mono text-slate-400 text-xs">
+                                                        {String(job.id).substring(0, 8)}…
+                                                    </span>
+                                                )}
+                                            </p>
+                                            <p className="text-xs text-slate-400">{new Date(job.created_at).toLocaleString('ru-RU')}</p>
+                                        </div>
+                                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                            job.status === 'done'  ? 'bg-emerald-100 text-emerald-700' :
+                                            job.status === 'error' ? 'bg-red-100 text-red-600' :
+                                                                     'bg-blue-100 text-blue-700'}`}>
+                                            {statusLabel[job.status] || job.status}
+                                        </span>
+                                        <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors" />
+                                    </li>
+                                );
+                            })}
                         </ul>
                     )}
                 </div>
