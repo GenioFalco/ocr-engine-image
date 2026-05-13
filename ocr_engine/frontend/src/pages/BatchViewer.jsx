@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api';
 import { ArrowLeft, Check, Copy, AlertCircle, RefreshCw, FileText, Building, List, Download } from 'lucide-react';
 import { exportClosingDocsToExcel } from '../utils/excel';
@@ -261,8 +261,13 @@ const ClosingDocResult = ({ doc, idx, copiedKey, onCopy }) => {
 // ── BatchViewer page ──────────────────────────────────────────────────────────
 const BatchViewer = () => {
     const { jobIds } = useParams();
+    const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const ids = jobIds ? jobIds.split(',').filter(Boolean) : [];
+
+    // Module is passed explicitly in URL (?module=closing-docs) — no need to infer from loaded data
+    const batchModule = searchParams.get('module') || 'standard';
+    const isClosingDocs = batchModule === 'closing-docs';
 
     const [selectedIdx, setSelectedIdx] = useState(0);
     const [results, setResults] = useState({}); // jobId → data
@@ -295,10 +300,6 @@ const BatchViewer = () => {
     const isError = errors[currentId];
     const token = localStorage.getItem('token');
     const iframeUrl = currentId ? `/api/preview/${currentId}?token=${token}` : null;
-
-    // Determine module from the first loaded result (all jobs in a batch share the same module)
-    const batchModule = Object.values(results).find(r => r?.module)?.module || null;
-    const isClosingDocs = batchModule === 'closing-docs';
 
     const handleExportExcel = () => {
         const allDocs = [];

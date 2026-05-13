@@ -158,7 +158,7 @@ const UserDashboard = () => {
         if (doneJobIds.length === 1) {
             navigate(`/result/${doneJobIds[0]}`);
         } else if (doneJobIds.length > 1) {
-            navigate(`/batch/${doneJobIds.join(',')}`);
+            navigate(`/batch/${doneJobIds.join(',')}?module=${moduleId || 'standard'}`);
         }
     };
 
