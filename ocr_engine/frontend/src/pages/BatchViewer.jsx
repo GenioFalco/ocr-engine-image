@@ -181,21 +181,32 @@ const ClosingDocResult = ({ doc, idx, copiedKey, onCopy }) => {
         ? fieldsData.items
         : findMainTable(fieldsData);
 
-    const org      = getValue(flat, ['buyer_inn', 'buyer inn', 'инн_покупателя', 'инн_заказчика', 'покупатель_инн']);
-    const contrINN = getValue(flat, ['seller_inn', 'seller inn', 'инн_продавца', 'инн_исполнителя', 'продавца_инн', 'consignor_inn', 'consignor inn']);
-    const docNum   = getValue(flat, ['document_number', 'номер_документа', 'номер_счета', 'номер']);
-    const docSum   = getValue(flat, ['total_amount', 'amount', 'total', 'сумма_документа', 'итого']);
-    const contrNum = getValue(flat, ['contract_number', 'номер_договора', 'договор_номер']);
-    const docDate  = getValue(flat, ['document_date', 'дата_документа', 'дата']);
-    const vatRate  = getValue(flat, ['vat_rate', 'ставка_ндс', 'ндс_ставка'])
+    const org        = getValue(flat, ['buyer_inn', 'buyer inn', 'инн_покупателя', 'инн_заказчика', 'покупатель_инн']);
+    const contrName  = getValue(flat, ['seller_name', 'seller name', 'наименование_продавца', 'имя_продавца']);
+    const contrINN   = getValue(flat, ['seller_inn', 'seller inn', 'инн_продавца', 'инн_исполнителя', 'продавца_инн', 'consignor_inn', 'consignor inn']);
+    const docNum     = getValue(flat, ['document_number', 'номер_документа', 'номер_счета', 'номер']);
+    // Сумма: total_with_vat должен быть раньше чем просто total (иначе subtotal матчится первым)
+    const docSum     = getValue(flat, [
+        'total_with_vat', 'amounts total_with_vat', 'итого_с_ндс', 'сумма_с_ндс',
+        'total_amount', 'amount', 'итого', 'сумма_документа',
+    ]);
+    // Договор: basis_document → contract_*
+    const basisType   = getValue(flat, ['basis_document type', 'basis document type']);
+    const basisNumber = getValue(flat, ['basis_document number', 'basis document number', 'contract_number', 'номер_договора', 'договор_номер']);
+    const basisDate   = getValue(flat, ['basis_document date', 'basis document date']);
+    const contractTitle = getValue(flat, ['contract_title', 'договор', 'основание']);
+    const contract    = contractTitle
+        || [basisType, basisNumber, basisDate ? `от ${basisDate}` : ''].filter(Boolean).join(' ');
+    const docDate     = getValue(flat, ['document_date', 'дата_документа', 'дата']);
+    const vatRate     = getValue(flat, ['vat_rate', 'ставка_ндс', 'ндс_ставка'])
         || (table.length > 0 ? getValue(flattenObj(table[0]), ['vat_rate', 'ставка_ндс', 'ндс_ставка']) : '');
-    const contract = getValue(flat, ['contract_title', 'договор', 'основание']);
 
     const requisitesText = [
-        `Контрагент: ${contrINN || '-'}`,
+        `Контрагент: ${contrName || contrINN || '-'}`,
+        `ИНН продавца: ${contrINN || '-'}`,
         `Номер документа: ${docNum || '-'}`,
-        `Сумма документа: ${docSum || '-'}`,
-        `Номер договора: ${contrNum || '-'}`,
+        `Сумма с НДС: ${docSum || '-'}`,
+        `Договор: ${contract || '-'}`,
     ].join('\n');
 
     const tableText = table.length > 0 ? table.map(item => {
@@ -215,7 +226,7 @@ const ClosingDocResult = ({ doc, idx, copiedKey, onCopy }) => {
         { label: 'Реквизиты контрагента', value: requisitesText, id: `cd-req-${idx}`, multi: true },
         { label: 'Дата документа', value: docDate || '-', id: `cd-date-${idx}` },
         { label: 'Ставка НДС', value: vatRate || '-', id: `cd-vat-${idx}` },
-        { label: 'Договор', value: contract || '-', id: `cd-contr-${idx}` },
+        { label: 'Договор / Основание', value: contract || '-', id: `cd-contr-${idx}` },
         { label: 'Вид документа', value: doc.document_type || '-', id: `cd-type-${idx}` },
         { label: 'Таблица товаров / услуг', value: tableText, id: `cd-table-${idx}`, multi: true },
     ];
@@ -319,13 +330,15 @@ const BatchViewer = () => {
     const iframeUrl = currentId ? `/api/preview/${currentId}?token=${token}` : null;
 
     const handleExportExcel = () => {
-        const allDocs = [];
-        ids.forEach(id => {
-            if (results[id] && results[id].documents) {
-                allDocs.push(...results[id].documents);
-            }
-        });
-        if (allDocs.length > 0) exportClosingDocsToExcel(allDocs);
+        const jobNames = (() => { try { return JSON.parse(localStorage.getItem('ocr_job_names') || '{}'); } catch { return {}; } })();
+        const jobResults = ids
+            .filter(id => results[id]?.documents?.length)
+            .map(id => ({
+                jobId: id,
+                filename: jobNames[id] || id,
+                documents: results[id].documents,
+            }));
+        if (jobResults.length > 0) exportClosingDocsToExcel(jobResults);
     };
 
     return (

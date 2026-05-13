@@ -1,29 +1,23 @@
 import * as XLSX from 'xlsx';
 
-// ── Поиск значения по списку ключей (синонимов) ──────────────────────────
+// ── Поиск значения по списку ключей (синонимов) ──────────────────────────────
 const getValue = (flatData, keys) => {
-    // 1. Сначала ищем точные совпадения (без учета регистра и лишних символов)
+    // 1. Точные совпадения (без учёта регистра и спецсимволов)
     for (const key of keys) {
-        const normalizedKey = key.toLowerCase().replace(/[^a-zа-яё0-9]/g, '');
-        for (const [realKey, val] of Object.entries(flatData)) {
-            const normalizedRealKey = realKey.toLowerCase().replace(/[^a-zа-яё0-9]/g, '');
-            if (normalizedRealKey === normalizedKey) {
-                if (val !== null && val !== undefined && val !== '' && val !== 'null') {
-                    return val;
-                }
+        const nk = key.toLowerCase().replace(/[^a-zа-яё0-9]/g, '');
+        for (const [rk, val] of Object.entries(flatData)) {
+            if (rk.toLowerCase().replace(/[^a-zа-яё0-9]/g, '') === nk) {
+                if (val !== null && val !== undefined && val !== '' && val !== 'null') return val;
             }
         }
     }
-    // 2. Если не нашли точных, ищем вхождения
+    // 2. Вхождения (ключ ≥ 3 символов)
     for (const key of keys) {
-        const normalizedKey = key.toLowerCase().replace(/[^a-zа-яё0-9]/g, '');
-        if (normalizedKey.length < 3) continue; // слишком короткие ключи не ищем вхождением
-        for (const [realKey, val] of Object.entries(flatData)) {
-            const normalizedRealKey = realKey.toLowerCase().replace(/[^a-zа-яё0-9]/g, '');
-            if (normalizedRealKey.includes(normalizedKey)) {
-                if (val !== null && val !== undefined && val !== '' && val !== 'null') {
-                    return val;
-                }
+        const nk = key.toLowerCase().replace(/[^a-zа-яё0-9]/g, '');
+        if (nk.length < 3) continue;
+        for (const [rk, val] of Object.entries(flatData)) {
+            if (rk.toLowerCase().replace(/[^a-zа-яё0-9]/g, '').includes(nk)) {
+                if (val !== null && val !== undefined && val !== '' && val !== 'null') return val;
             }
         }
     }
@@ -44,7 +38,6 @@ const parseFields = (fieldsObj) => {
 const flattenObject = (obj, prefix = '') => {
     const result = {};
     if (!obj || typeof obj !== 'object') return result;
-
     for (const [k, v] of Object.entries(obj)) {
         const key = prefix ? `${prefix} ${k}` : k;
         if (Array.isArray(v)) continue;
@@ -60,7 +53,7 @@ const flattenObject = (obj, prefix = '') => {
     return result;
 };
 
-// Находим самый большой массив (таблицу товаров)
+// Находим самый большой массив (таблица товаров) — только если нет явного items
 const findMainTable = (obj) => {
     let mainArr = [];
     const search = (item) => {
@@ -76,95 +69,125 @@ const findMainTable = (obj) => {
     return mainArr;
 };
 
-export const exportClosingDocsToExcel = (documents) => {
-    const rows = documents.map(doc => {
-        const structured = parseFields(doc.fields || {});
-        // Remove visual_marks so findMainTable doesn't pick up seals/signatures arrays
-        const { visual_marks: _vm, ...fieldsData } = structured;
-        const flatData = flattenObject(fieldsData);
+// ── Основная функция экспорта ─────────────────────────────────────────────────
+// jobResults: Array<{ jobId: string, filename: string, documents: Array }>
+export const exportClosingDocsToExcel = (jobResults) => {
+    const rows = [];
 
-        // --- Организация (ИНН Покупателя) ---
-        // Ищем строго ИНН — убраны общие 'buyer'/'seller' которые матчат и name, и address
-        const org = getValue(flatData, ['buyer_inn', 'buyer inn', 'инн_покупателя', 'инн_заказчика', 'покупатель_инн']);
+    for (const { jobId, filename, documents } of jobResults) {
+        for (const doc of (documents || [])) {
+            const structured = parseFields(doc.fields || {});
+            const { visual_marks: _vm, ...fieldsData } = structured;
+            const flat = flattenObject(fieldsData);
 
-        // --- Реквизиты Контрагента (Объединенная колонка) ---
-        const contrINN = getValue(flatData, ['seller_inn', 'seller inn', 'инн_продавца', 'инн_исполнителя', 'продавца_инн', 'consignor_inn', 'consignor inn']);
-        const docNum = getValue(flatData, ['document_number', 'номер_документа', 'номер_счета', 'номер']);
-        const docSum = getValue(flatData, ['total_amount', 'amount', 'total', 'сумма_документа', 'итого']);
-        const contrNum = getValue(flatData, ['contract_number', 'номер_договора', 'договор_номер']);
+            // Prefer explicit items key; fall back to findMainTable
+            const tableArr = (Array.isArray(fieldsData.items) && fieldsData.items.length > 0)
+                ? fieldsData.items
+                : findMainTable(fieldsData);
 
-        const combinedRequisites = [
-            `Контрагент: ${contrINN || '-'}`,
-            `Номер документа: ${docNum || '-'}`,
-            `Сумма документа: ${docSum || '-'}`,
-            `Номер договора: ${contrNum || '-'}`
-        ].join('\n');
+            // ── Покупатель (ИНН) ──────────────────────────────────────────────
+            const buyerINN = getValue(flat, [
+                'buyer_inn', 'buyer inn', 'инн_покупателя', 'инн_заказчика', 'покупатель_инн',
+            ]);
 
-        // --- Таблица товаров (определяем раньше — нужна для vatRate) ---
-        // Prefer the explicit 'items' key; fall back to findMainTable if absent
-        const tableArr = (Array.isArray(fieldsData.items) && fieldsData.items.length > 0)
-            ? fieldsData.items
-            : findMainTable(fieldsData);
+            // ── Продавец ──────────────────────────────────────────────────────
+            const sellerName = getValue(flat, [
+                'seller_name', 'seller name', 'наименование_продавца', 'имя_продавца',
+                'исполнитель name', 'поставщик name',
+            ]);
+            const sellerINN = getValue(flat, [
+                'seller_inn', 'seller inn', 'инн_продавца', 'инн_исполнителя',
+                'продавца_инн', 'consignor_inn', 'consignor inn',
+            ]);
 
-        // --- Остальные поля ---
-        const docDate = getValue(flatData, ['document_date', 'дата_документа', 'дата']);
-        // vat_rate often lives only inside items[0] — fallback there
-        const vatRate = getValue(flatData, ['vat_rate', 'ставка_ндс', 'ндс_ставка'])
-            || (tableArr.length > 0 ? getValue(flattenObject(tableArr[0]), ['vat_rate', 'ставка_ндс', 'ндс_ставка']) : '');
-        const contract = getValue(flatData, ['contract_title', 'договор', 'основание']);
-        let tableString = '';
-        if (tableArr.length > 0) {
-            tableString = tableArr.map(item => {
-                const itemFlat = flattenObject(item);
-                
-                const name = getValue(itemFlat, ['name', 'description', 'наименование', 'товар', 'услуга']) || '-';
-                const qty = getValue(itemFlat, ['quantity', 'кол-во', 'количество', 'колво', 'qty']) || '-';
-                const price = getValue(itemFlat, ['price_without_vat', 'unit_price', 'price', 'цена']) || '-';
-                const subtotal = getValue(itemFlat, ['amount_without_vat', 'subtotal', 'стоимость_безналога', 'сумма_без_ндс', 'сумма']) || '-';
-                const itemVat = getValue(itemFlat, ['vat_rate', 'ставка_ндс', 'ндс_ставка']) || '-';
-                const tax = getValue(itemFlat, ['vat_amount', 'сумма_налога', 'сумма_ндс', 'ндс']) || '-';
-                const total = getValue(itemFlat, ['amount_with_vat', 'total', 'total_amount', 'стоимость_с_налогами', 'итого']) || '-';
+            // ── Документ ──────────────────────────────────────────────────────
+            const docNum  = getValue(flat, ['document_number', 'номер_документа', 'номер_счета', 'номер']);
+            const docDate = getValue(flat, ['document_date', 'дата_документа', 'дата']);
 
-                return `Наименование: ${name}, Кол-во: ${qty}, Цена: ${price}, Стоимость без налога: ${subtotal}, Ставка НДС: ${itemVat}, Сумма налога: ${tax}, Стоимость с налогами: ${total}`;
-            }).join(' ;\n');
+            // Сумма: ищем total_with_vat раньше чем просто total (иначе попадает subtotal)
+            const docSum = getValue(flat, [
+                'total_with_vat', 'amounts total_with_vat', 'итого_с_ндс', 'сумма_с_ндс',
+                'total_amount', 'amount', 'итого', 'сумма_документа',
+            ]);
+
+            // Ставка НДС — может быть только внутри items[0]
+            const vatRate = getValue(flat, ['vat_rate', 'ставка_ндс', 'ндс_ставка'])
+                || (tableArr.length > 0
+                    ? getValue(flattenObject(tableArr[0]), ['vat_rate', 'ставка_ндс', 'ндс_ставка'])
+                    : '');
+
+            // Договор: basis_document type + number, или contract_title
+            const basisType   = getValue(flat, ['basis_document type', 'basis document type', 'тип_основания']);
+            const basisNumber = getValue(flat, [
+                'basis_document number', 'basis document number',
+                'contract_number', 'номер_договора', 'договор_номер',
+            ]);
+            const basisDate   = getValue(flat, ['basis_document date', 'basis document date', 'дата_договора']);
+            const contractTitle = getValue(flat, ['contract_title', 'договор', 'основание']);
+
+            let contractStr = contractTitle || '';
+            if (!contractStr) {
+                const parts = [basisType, basisNumber, basisDate ? `от ${basisDate}` : ''].filter(Boolean);
+                contractStr = parts.join(' ');
+            }
+
+            // ── Таблица товаров ───────────────────────────────────────────────
+            let tableString = '-';
+            if (tableArr.length > 0) {
+                tableString = tableArr.map(item => {
+                    const f = flattenObject(item);
+                    const name    = getValue(f, ['name', 'description', 'наименование', 'товар', 'услуга']) || '-';
+                    const qty     = getValue(f, ['quantity', 'кол-во', 'количество', 'qty']) || '-';
+                    const price   = getValue(f, ['price_without_vat', 'unit_price', 'price', 'цена']) || '-';
+                    const sub     = getValue(f, ['amount_without_vat', 'subtotal', 'сумма_без_ндс']) || '-';
+                    const itemVat = getValue(f, ['vat_rate', 'ставка_ндс', 'ндс_ставка']) || '-';
+                    const tax     = getValue(f, ['vat_amount', 'сумма_налога', 'сумма_ндс', 'ндс']) || '-';
+                    const total   = getValue(f, ['amount_with_vat', 'total_with_vat', 'total', 'итого']) || '-';
+                    return `Наименование: ${name}, Кол-во: ${qty}, Цена: ${price}, Без НДС: ${sub}, НДС%: ${itemVat}, НДС: ${tax}, Итого: ${total}`;
+                }).join(';\n');
+            }
+
+            // ── Описание (колонка 3) ──────────────────────────────────────────
+            const description = [
+                sellerName  ? `Контрагент: ${sellerName}`       : null,
+                sellerINN   ? `ИНН продавца: ${sellerINN}`      : null,
+                docNum      ? `Номер документа: ${docNum}`      : null,
+                docDate     ? `Дата документа: ${docDate}`      : null,
+                docSum      ? `Сумма с НДС: ${docSum}`          : null,
+                vatRate     ? `Ставка НДС: ${vatRate}`          : null,
+                contractStr ? `Договор: ${contractStr}`         : null,
+                tableArr.length > 0 ? `\n${tableString}`        : null,
+            ].filter(Boolean).join('\n');
+
+            rows.push({
+                'Вид документа':       doc.document_type || '-',
+                'Организация (ИНН покупателя)': buyerINN || '-',
+                'Описание':            description || '-',
+                'Файл':                filename || jobId || '-',
+            });
         }
-
-        return {
-            'Организация': org || '-',
-            'Реквизиты Контрагента': combinedRequisites,
-            'Дата документа': docDate || '-',
-            'Ставка НДС': vatRate || '-',
-            'Договор': contract || '-',
-            'Вид документа': doc.document_type || '-',
-            'Таблица': tableString || '-'
-        };
-    });
+    }
 
     const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
+    const workbook  = XLSX.utils.book_new();
 
-    // Настройка колонок (ширина)
+    // Ширина столбцов
     worksheet['!cols'] = [
-        { wch: 20 }, // Организация
-        { wch: 40 }, // Реквизиты
-        { wch: 15 }, // Дата
-        { wch: 15 }, // НДС
-        { wch: 25 }, // Договор
-        { wch: 20 }, // Вид
-        { wch: 100 }, // Таблица
+        { wch: 20 },  // Вид документа
+        { wch: 22 },  // Организация
+        { wch: 90 },  // Описание
+        { wch: 40 },  // Файл
     ];
 
-    // Включаем перенос строк (\n)
+    // Включаем перенос строк для столбца «Описание» (индекс 2)
     const range = XLSX.utils.decode_range(worksheet['!ref']);
     for (let R = range.s.r; R <= range.e.r; ++R) {
-        [1, 6].forEach(C => {
-            const cell = worksheet[XLSX.utils.encode_cell({ r: R, c: C })];
-            if (cell) {
-                if (!cell.s) cell.s = {};
-                cell.s.wrapText = true;
-                cell.t = 's';
-            }
-        });
+        const cell = worksheet[XLSX.utils.encode_cell({ r: R, c: 2 })];
+        if (cell) {
+            if (!cell.s) cell.s = {};
+            cell.s.wrapText = true;
+            cell.t = 's';
+        }
     }
 
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Отчет');
