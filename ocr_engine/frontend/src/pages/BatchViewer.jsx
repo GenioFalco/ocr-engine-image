@@ -4,7 +4,59 @@ import api from '../api';
 import { ArrowLeft, Check, Copy, AlertCircle, RefreshCw, FileText, Building, List, Download } from 'lucide-react';
 import { exportClosingDocsToExcel } from '../utils/excel';
 
-// ── re-used helpers (same as ResultViewer) ────────────────────────────────────
+// ── Closing-docs helpers (same logic as ResultViewer / excel.js) ──────────────
+const getValue = (flatData, keys) => {
+    for (const key of keys) {
+        const nk = key.toLowerCase().replace(/[^a-zа-яё0-9]/g, '');
+        for (const [rk, val] of Object.entries(flatData)) {
+            if (rk.toLowerCase().replace(/[^a-zа-яё0-9]/g, '') === nk && val != null && val !== '' && val !== 'null')
+                return val;
+        }
+    }
+    for (const key of keys) {
+        const nk = key.toLowerCase().replace(/[^a-zа-яё0-9]/g, '');
+        if (nk.length < 3) continue;
+        for (const [rk, val] of Object.entries(flatData)) {
+            if (rk.toLowerCase().replace(/[^a-zа-яё0-9]/g, '').includes(nk) && val != null && val !== '' && val !== 'null')
+                return val;
+        }
+    }
+    return '';
+};
+
+const flattenObj = (obj, prefix = '') => {
+    const r = {};
+    if (!obj || typeof obj !== 'object') return r;
+    for (const [k, v] of Object.entries(obj)) {
+        const key = prefix ? `${prefix} ${k}` : k;
+        if (Array.isArray(v)) continue;
+        if (v && typeof v === 'object' && 'value' in v) { if (v.value != null) r[key] = String(v.value); }
+        else if (v && typeof v === 'object') Object.assign(r, flattenObj(v, key));
+        else if (v != null) r[key] = String(v);
+    }
+    return r;
+};
+
+const findMainTable = (obj) => {
+    let arr = [];
+    const s = (x) => {
+        if (Array.isArray(x)) { if (x.length > arr.length) arr = x; }
+        else if (x && typeof x === 'object' && !('value' in x)) Object.values(x).forEach(s);
+    };
+    s(obj);
+    return arr;
+};
+
+const parseFieldsSafe = (f) => {
+    if (!f) return {};
+    const r = {};
+    for (const [k, v] of Object.entries(f)) {
+        if (typeof v === 'string') { try { r[k] = JSON.parse(v); } catch { r[k] = v; } } else r[k] = v;
+    }
+    return r;
+};
+
+// ── re-used helpers (standard layout) ────────────────────────────────────────
 const formatCurrency = (value) => {
     if (value == null || value === '' || value === '-' || !Number(value)) return value || '-';
     return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: 2 }).format(value);
@@ -20,7 +72,8 @@ const parseFields = (fieldsObj) => {
     return parsed;
 };
 
-const Field = ({ fieldId, label, value, onCopy, copiedKey }) => {
+// ── Shared UI components ──────────────────────────────────────────────────────
+const FieldRow = ({ fieldId, label, value, onCopy, copiedKey }) => {
     const displayVal = value === null || value === undefined || value === '' ? null : String(value);
     if (!displayVal) return null;
     return (
@@ -47,6 +100,7 @@ const Card = ({ title, icon: Icon, children }) => (
     </div>
 );
 
+// ── Standard document result ──────────────────────────────────────────────────
 const DocResult = ({ doc, idx, copiedKey, onCopy }) => {
     const structured = parseFields(doc.fields || {});
     const primitives = {}, objects = {}, arrays = {};
@@ -70,7 +124,7 @@ const DocResult = ({ doc, idx, copiedKey, onCopy }) => {
                 <Card title="Основная информация" icon={FileText}>
                     {Object.entries(primitives).map(([k, v]) => {
                         const val = typeof v === 'object' && v !== null && 'value' in v ? v.value : v;
-                        return <Field key={k} fieldId={`${idx}-${k}`} label={k.replace(/_/g, ' ')} value={val} onCopy={onCopy} copiedKey={copiedKey} />;
+                        return <FieldRow key={k} fieldId={`${idx}-${k}`} label={k.replace(/_/g, ' ')} value={val} onCopy={onCopy} copiedKey={copiedKey} />;
                     })}
                 </Card>
             )}
@@ -78,7 +132,7 @@ const DocResult = ({ doc, idx, copiedKey, onCopy }) => {
                 <Card key={objKey} title={objKey.replace(/_/g, ' ').toUpperCase()} icon={Building}>
                     {Object.entries(objVal).map(([sk, sv]) => {
                         const val = typeof sv === 'object' && sv !== null && 'value' in sv ? sv.value : sv;
-                        return <Field key={sk} fieldId={`${idx}-${objKey}-${sk}`} label={sk.replace(/_/g, ' ')} value={val} onCopy={onCopy} copiedKey={copiedKey} />;
+                        return <FieldRow key={sk} fieldId={`${idx}-${objKey}-${sk}`} label={sk.replace(/_/g, ' ')} value={val} onCopy={onCopy} copiedKey={copiedKey} />;
                     })}
                 </Card>
             ))}
@@ -112,6 +166,94 @@ const DocResult = ({ doc, idx, copiedKey, onCopy }) => {
                     </div>
                 );
             })}
+        </div>
+    );
+};
+
+// ── Closing-docs document result ──────────────────────────────────────────────
+const ClosingDocResult = ({ doc, idx, copiedKey, onCopy }) => {
+    const structured = parseFieldsSafe(doc.fields || {});
+    const { visual_marks: _vm, ...fieldsData } = structured;
+    const flat = flattenObj(fieldsData);
+
+    // Prefer explicit 'items' key; fall back to findMainTable
+    const table = (Array.isArray(fieldsData.items) && fieldsData.items.length > 0)
+        ? fieldsData.items
+        : findMainTable(fieldsData);
+
+    const org      = getValue(flat, ['buyer_inn', 'buyer inn', 'инн_покупателя', 'инн_заказчика', 'покупатель_инн']);
+    const contrINN = getValue(flat, ['seller_inn', 'seller inn', 'инн_продавца', 'инн_исполнителя', 'продавца_инн', 'consignor_inn', 'consignor inn']);
+    const docNum   = getValue(flat, ['document_number', 'номер_документа', 'номер_счета', 'номер']);
+    const docSum   = getValue(flat, ['total_amount', 'amount', 'total', 'сумма_документа', 'итого']);
+    const contrNum = getValue(flat, ['contract_number', 'номер_договора', 'договор_номер']);
+    const docDate  = getValue(flat, ['document_date', 'дата_документа', 'дата']);
+    const vatRate  = getValue(flat, ['vat_rate', 'ставка_ндс', 'ндс_ставка'])
+        || (table.length > 0 ? getValue(flattenObj(table[0]), ['vat_rate', 'ставка_ндс', 'ндс_ставка']) : '');
+    const contract = getValue(flat, ['contract_title', 'договор', 'основание']);
+
+    const requisitesText = [
+        `Контрагент: ${contrINN || '-'}`,
+        `Номер документа: ${docNum || '-'}`,
+        `Сумма документа: ${docSum || '-'}`,
+        `Номер договора: ${contrNum || '-'}`,
+    ].join('\n');
+
+    const tableText = table.length > 0 ? table.map(item => {
+        const f = flattenObj(item);
+        const name  = getValue(f, ['name', 'description', 'наименование', 'товар', 'услуга']) || '-';
+        const qty   = getValue(f, ['quantity', 'количество', 'кол-во', 'qty']) || '-';
+        const price = getValue(f, ['price_without_vat', 'unit_price', 'price', 'цена']) || '-';
+        const sub   = getValue(f, ['amount_without_vat', 'subtotal', 'сумма_без_ндс', 'сумма']) || '-';
+        const vat   = getValue(f, ['vat_rate', 'ставка_ндс']) || '-';
+        const tax   = getValue(f, ['vat_amount', 'сумма_ндс', 'ндс']) || '-';
+        const tot   = getValue(f, ['amount_with_vat', 'total', 'total_amount', 'итого']) || '-';
+        return `Наименование: ${name}, Кол-во: ${qty}, Цена: ${price}, Без налога: ${sub}, НДС%: ${vat}, НДС: ${tax}, Итого: ${tot}`;
+    }).join('\n') : '-';
+
+    const cols = [
+        { label: 'Организация (ИНН покупателя)', value: org || '-', id: `cd-org-${idx}` },
+        { label: 'Реквизиты контрагента', value: requisitesText, id: `cd-req-${idx}`, multi: true },
+        { label: 'Дата документа', value: docDate || '-', id: `cd-date-${idx}` },
+        { label: 'Ставка НДС', value: vatRate || '-', id: `cd-vat-${idx}` },
+        { label: 'Договор', value: contract || '-', id: `cd-contr-${idx}` },
+        { label: 'Вид документа', value: doc.document_type || '-', id: `cd-type-${idx}` },
+        { label: 'Таблица товаров / услуг', value: tableText, id: `cd-table-${idx}`, multi: true },
+    ];
+
+    return (
+        <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-bold text-slate-900">{doc.document_type || 'Документ'}</h2>
+                {doc.confidence && (
+                    <span className="text-xs font-bold px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full">
+                        Точность: {(doc.confidence * 100).toFixed(0)}%
+                    </span>
+                )}
+            </div>
+            <div className="space-y-2">
+                {cols.map(col => (
+                    <div key={col.id} className="bg-white rounded-xl border border-slate-200 px-4 py-3 flex items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-1">{col.label}</div>
+                            {col.multi ? (
+                                <pre className="text-sm text-slate-800 whitespace-pre-wrap font-sans leading-relaxed">
+                                    {col.value}
+                                </pre>
+                            ) : (
+                                <div className="text-sm font-medium text-slate-800">{col.value}</div>
+                            )}
+                        </div>
+                        <button
+                            onClick={() => onCopy(col.id, col.value)}
+                            className="shrink-0 h-6 px-2 inline-flex items-center gap-1 text-xs font-medium text-slate-500
+                                bg-white border border-slate-200 rounded hover:border-sky-400 hover:text-sky-600
+                                transition-colors shadow-sm"
+                        >
+                            {copiedKey === col.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                        </button>
+                    </div>
+                ))}
+            </div>
         </div>
     );
 };
@@ -154,6 +296,10 @@ const BatchViewer = () => {
     const token = localStorage.getItem('token');
     const iframeUrl = currentId ? `/api/preview/${currentId}?token=${token}` : null;
 
+    // Determine module from the first loaded result (all jobs in a batch share the same module)
+    const batchModule = Object.values(results).find(r => r?.module)?.module || null;
+    const isClosingDocs = batchModule === 'closing-docs';
+
     const handleExportExcel = () => {
         const allDocs = [];
         ids.forEach(id => {
@@ -175,14 +321,16 @@ const BatchViewer = () => {
                     <span className="text-slate-200">|</span>
                     <p className="text-sm font-semibold text-slate-700">Пакет: {ids.length} документ(ов)</p>
                 </div>
-                
-                <button 
-                    onClick={handleExportExcel}
-                    className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 text-sm font-semibold rounded-lg hover:bg-emerald-100 transition-colors border border-emerald-200 shadow-sm"
-                >
-                    <Download className="w-4 h-4" />
-                    Экспорт в Excel
-                </button>
+
+                {isClosingDocs && (
+                    <button
+                        onClick={handleExportExcel}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 text-sm font-semibold rounded-lg hover:bg-emerald-100 transition-colors border border-emerald-200 shadow-sm"
+                    >
+                        <Download className="w-4 h-4" />
+                        Экспорт в Excel
+                    </button>
+                )}
             </div>
 
             <div className="flex flex-1 min-h-0">
@@ -240,9 +388,13 @@ const BatchViewer = () => {
                         </div>
                     )}
                     {currentResult && !isLoading && (
-                        (currentResult.documents || []).map((doc, idx) => (
-                            <DocResult key={idx} doc={doc} idx={`${selectedIdx}-${idx}`} copiedKey={copiedKey} onCopy={onCopy} />
-                        ))
+                        isClosingDocs
+                            ? (currentResult.documents || []).map((doc, idx) => (
+                                <ClosingDocResult key={idx} doc={doc} idx={`${selectedIdx}-${idx}`} copiedKey={copiedKey} onCopy={onCopy} />
+                            ))
+                            : (currentResult.documents || []).map((doc, idx) => (
+                                <DocResult key={idx} doc={doc} idx={`${selectedIdx}-${idx}`} copiedKey={copiedKey} onCopy={onCopy} />
+                            ))
                     )}
                 </div>
             </div>
