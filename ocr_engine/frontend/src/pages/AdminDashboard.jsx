@@ -635,12 +635,23 @@ const ContractsSection = () => {
 const QuotaWidget = () => {
     const [quota, setQuota] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-    useEffect(() => {
-        api.get('/admin/quota').then(({ data }) => { setQuota(data); setLoading(false); }).catch(() => setLoading(false));
-    }, []);
+    const load = () => {
+        setLoading(true); setError(null);
+        api.get('/admin/quota')
+            .then(({ data }) => { setQuota(data); setLoading(false); })
+            .catch(err => { setError(err?.response?.data?.detail || err.message || 'Ошибка загрузки'); setLoading(false); });
+    };
+    useEffect(() => { load(); }, []);
 
-    if (loading) return <div className="flex items-center gap-2 text-sm text-slate-400 py-2"><RefreshCw className="w-4 h-4 animate-spin" /> Загрузка статистики токенов...</div>;
+    if (loading) return <div className="flex items-center gap-2 text-sm text-slate-400 py-2 mb-4"><RefreshCw className="w-4 h-4 animate-spin" /> Загрузка статистики токенов...</div>;
+    if (error) return (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-center justify-between">
+            <span className="text-sm text-red-600">⚠ Ошибка загрузки квоты: {error}</span>
+            <button onClick={load} className="text-xs text-red-500 underline ml-3">Повторить</button>
+        </div>
+    );
     if (!quota) return null;
 
     const usedPct = quota.free_tier_limit > 0 ? Math.min(100, (quota.total_all_time / quota.free_tier_limit) * 100) : 0;
