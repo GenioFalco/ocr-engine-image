@@ -1,3 +1,4 @@
+import secrets as _secrets
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -18,20 +19,26 @@ router = APIRouter()
 def register(user_in: UserCreate, db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)) -> Any:
     """
     Create new user (Admins Only).
+    - role='user'  → password and email required
+    - role='robot' → password and email optional; robot must authenticate via API key only
     """
-    user = db.query(User).filter(User.username == user_in.username).first()
-    if user:
-        raise HTTPException(
-            status_code=400,
-            detail="The user with this username already exists in the system.",
-        )
-    
+    existing = db.query(User).filter(User.username == user_in.username).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="The user with this username already exists in the system.")
+
     role = user_in.role if user_in.role in ('user', 'robot') else 'user'
-    
+
+    # Regular users must have a password
+    if role == 'user' and not user_in.password:
+        raise HTTPException(status_code=400, detail="Password is required for user accounts.")
+
+    # Robots get a random unusable password hash so they can never login via /auth/login
+    raw_password = user_in.password if user_in.password else _secrets.token_urlsafe(48)
+
     user = User(
         username=user_in.username,
-        email=user_in.email,
-        hashed_password=get_password_hash(user_in.password),
+        email=user_in.email or None,
+        hashed_password=get_password_hash(raw_password),
         role=role,
         is_active=True
     )
@@ -45,13 +52,16 @@ def login_access_token(
     db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()
 ) -> Any:
     """
-    OAuth2 compatible token login, get an access token for future requests
+    OAuth2 compatible token login, get an access token for future requests.
+    Robot accounts cannot use this endpoint — they must use /auth/token with API key.
     """
     user = db.query(User).filter(User.username == form_data.username).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Incorrect email or password")
     elif not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
+    elif user.role == "robot":
+        raise HTTPException(status_code=403, detail="Robot accounts cannot login with password. Use /auth/token with client_id and client_secret.")
         
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     
@@ -157,12 +167,17 @@ def list_api_keys(
 ) -> Any:
     """List all API keys (Admin only). Secret hashes are never returned."""
     keys = db.query(ApiKey).order_by(ApiKey.created_at.desc()).all()
+    # Fetch usernames in one query to avoid lazy-load issues
+    uid_set = list({k.user_id for k in keys if k.user_id})
+    users_map: dict = {}
+    if uid_set:
+        users_map = {u.id: u.username for u in db.query(User).filter(User.id.in_(uid_set)).all()}
     return [{
         "id": k.id,
         "client_id": k.client_id,
         "label": k.label,
         "user_id": k.user_id,
-        "username": k.user.username if k.user else "?",
+        "username": users_map.get(k.user_id, "?"),
         "is_active": k.is_active,
         "created_at": k.created_at,
         "last_used_at": k.last_used_at,

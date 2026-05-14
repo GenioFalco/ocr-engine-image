@@ -13,7 +13,7 @@ import {
 const NAV = [
     { id: 'analytics',label: 'Аналитика',       icon: PieChart },
     { id: 'users',    label: 'Пользователи',    icon: Users },
-    { id: 'jobs',     label: 'Все задания',      icon: Activity },
+    { id: 'jobs',     label: 'Сканирования',      icon: Activity },
     { id: 'doctypes', label: 'Типы документов',  icon: FileText },
     { id: 'contracts',label: 'Контракты',        icon: List },
     { id: 'models',   label: 'Модели ИИ',        icon: Cpu },
@@ -139,11 +139,14 @@ const SectionWrap = ({ title, action, children }) => (
 );
 
 // ─── Section: Users ───────────────────────────────────────────────────────────
-const UsersSection = () => {
+const UsersSection = ({ onGoApiKeys }) => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState({ username: '', email: '', password: '', role: 'user' });
+    const [justCreated, setJustCreated] = useState(null); // { username, id, isRobot }
+
+    const isRobot = form.role === 'robot';
 
     const load = async () => { setLoading(true); const { data } = await api.get('/admin/users'); setUsers(data); setLoading(false); };
     useEffect(() => { load(); }, []);
@@ -151,13 +154,27 @@ const UsersSection = () => {
     const submit = async (e) => {
         e.preventDefault();
         try {
-            await api.post('/auth/register', form);
-            toast.success(`Пользователь «${form.username}» (${form.role}) создан.`);
+            const payload = { username: form.username, role: form.role };
+            if (!isRobot) { payload.email = form.email; payload.password = form.password; }
+            const { data } = await api.post('/auth/register', payload);
+            toast.success(`${isRobot ? '🤖 Робот' : '👤 Пользователь'} «${form.username}» создан.`);
+            setJustCreated({ username: form.username, id: data.id, isRobot });
             setForm({ username: '', email: '', password: '', role: 'user' });
             setShowForm(false);
             load();
         } catch (err) {
             toast.error(err.response?.data?.detail || 'Ошибка создания');
+        }
+    };
+
+    const del = async (id, username) => {
+        if (!confirm(`Удалить пользователя «${username}»? Это действие необратимо.`)) return;
+        try {
+            await api.delete(`/admin/users/${id}`);
+            toast.success(`Пользователь «${username}» удалён.`);
+            load();
+        } catch (err) {
+            toast.error(err.response?.data?.detail || 'Не удалось удалить пользователя');
         }
     };
 
@@ -171,44 +188,104 @@ const UsersSection = () => {
                 ? <span className="text-xs text-emerald-600 font-medium">✓ Активен</span>
                 : <span className="text-xs text-slate-400">Заблокирован</span>
         },
+        {
+            key: 'actions', label: '', render: r => r.role !== 'admin' && (
+                <Btn onClick={() => del(r.id, r.username)} variant="danger" size="sm">
+                    <Trash2 className="w-3 h-3" />Удалить
+                </Btn>
+            )
+        },
     ];
 
     return (
         <SectionWrap
             title={`Пользователи (${users.length})`}
-            action={<Btn size="sm" variant={showForm ? 'ghost' : 'primary'} onClick={() => setShowForm(!showForm)}>
+            action={<Btn size="sm" variant={showForm ? 'ghost' : 'primary'} onClick={() => { setShowForm(!showForm); setJustCreated(null); }}>
                 {showForm ? <><X className="w-3.5 h-3.5" />Отмена</> : <><UserPlus className="w-3.5 h-3.5" />Создать</>}
             </Btn>}
         >
+            {/* Banner after creating a robot — prompt to issue API key */}
+            {justCreated?.isRobot && (
+                <div className="mx-6 mt-5 p-4 bg-violet-50 border border-violet-200 rounded-xl flex items-center justify-between gap-4">
+                    <div>
+                        <p className="text-sm font-semibold text-violet-800">🤖 Робот «{justCreated.username}» создан</p>
+                        <p className="text-xs text-violet-600 mt-0.5">Выдайте API ключ, чтобы робот мог авторизоваться.</p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                        <Btn size="sm" variant="primary" onClick={() => { setJustCreated(null); onGoApiKeys?.(); }}>
+                            Выдать API ключ →
+                        </Btn>
+                        <button onClick={() => setJustCreated(null)} className="p-1.5 text-violet-400 hover:text-violet-600"><X className="w-4 h-4" /></button>
+                    </div>
+                </div>
+            )}
+            {justCreated && !justCreated.isRobot && (
+                <div className="mx-6 mt-5 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
+                    <p className="text-sm font-semibold text-emerald-800">👤 Пользователь «{justCreated.username}» создан. Передайте ему логин и пароль.</p>
+                    <button onClick={() => setJustCreated(null)} className="p-1.5 text-emerald-400 hover:text-emerald-600"><X className="w-4 h-4" /></button>
+                </div>
+            )}
+
             {showForm && (
                 <div className="p-6 bg-sky-50/40 border-b border-slate-100">
                     <form onSubmit={submit} className="max-w-2xl bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
                         <h3 className="font-semibold text-slate-800">Новый пользователь</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {[['Логин *', 'text', 'username', 'ivan_petrov', true], ['Email', 'email', 'email', 'ivan@company.ru', false]].map(([lbl, type, key, ph, req]) => (
-                                <div key={key}>
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">{lbl}</label>
-                                    <input type={type} required={req} value={form[key]}
-                                        onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                        placeholder={ph} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none" />
-                                </div>
-                            ))}
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Пароль *</label>
-                                <input type="text" required minLength={4} value={form.password}
-                                    onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                                    placeholder="Минимум 4 символа" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none font-mono" />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Роль *</label>
-                                <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
-                                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                    <option value="user">👤 Пользователь — доступ к интерфейсу</option>
-                                    <option value="robot">🤖 Робот — только API доступ</option>
-                                </select>
+
+                        {/* Role selector — first so it controls the rest of the form */}
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Роль *</label>
+                            <div className="grid grid-cols-2 gap-3">
+                                {[['user', '👤 Пользователь', 'Вход через ADFS / браузер'], ['robot', '🤖 Робот', 'Только API, без пароля']].map(([val, title, sub]) => (
+                                    <button key={val} type="button"
+                                        onClick={() => setForm(f => ({ ...f, role: val }))}
+                                        className={`p-3 rounded-xl border-2 text-left transition-all ${form.role === val
+                                            ? 'border-primary bg-sky-50'
+                                            : 'border-slate-200 bg-slate-50 hover:border-slate-300'}`}>
+                                        <div className="font-semibold text-sm text-slate-800">{title}</div>
+                                        <div className="text-xs text-slate-400 mt-0.5">{sub}</div>
+                                    </button>
+                                ))}
                             </div>
                         </div>
-                        <Btn type="submit" variant="primary">Зарегистрировать</Btn>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Логин *</label>
+                            <input type="text" required value={form.username}
+                                onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+                                placeholder={isRobot ? 'sherpa_rpa_prod' : 'ivan_petrov'}
+                                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none" />
+                        </div>
+
+                        {/* Email + Password — only for regular users */}
+                        {!isRobot && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Email</label>
+                                    <input type="email" value={form.email}
+                                        onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                                        placeholder="ivan@company.ru"
+                                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Пароль *</label>
+                                    <input type="text" required minLength={4} value={form.password}
+                                        onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                                        placeholder="Минимум 4 символа"
+                                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none font-mono" />
+                                </div>
+                            </div>
+                        )}
+
+                        {isRobot && (
+                            <div className="p-3 bg-violet-50 border border-violet-100 rounded-lg text-xs text-violet-700">
+                                🔑 Пароль не нужен — после создания выдайте роботу <strong>API ключ</strong> (раздел «API Ключи»).
+                                Робот будет авторизоваться через <code className="font-mono bg-violet-100 px-1 rounded">POST /auth/token</code>.
+                            </div>
+                        )}
+
+                        <Btn type="submit" variant="primary">
+                            {isRobot ? '🤖 Создать робота' : '👤 Зарегистрировать'}
+                        </Btn>
                     </form>
                 </div>
             )}
@@ -219,42 +296,182 @@ const UsersSection = () => {
     );
 };
 
-// ─── Section: All Jobs ────────────────────────────────────────────────────────
+// ─── Section: Scans / Jobs ────────────────────────────────────────────────────
+const MODULES_LIST = ['standard', 'closing-docs', 'text-extract'];
+const EMPTY_DRAFT = { module: '', date: '', user_id: '', errors_only: false, min_rating: '' };
+
 const JobsSection = () => {
     const navigate = useNavigate();
-    const [jobs, setJobs] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const load = async () => { setLoading(true); const { data } = await api.get('/admin/jobs'); setJobs(data); setLoading(false); };
-    useEffect(() => { load(); }, []);
+    const [jobs,     setJobs]     = useState([]);
+    const [allUsers, setAllUsers] = useState([]);
+    const [loading,  setLoading]  = useState(true);
+    const [meta,     setMeta]     = useState({ total: 0, pages: 1, page: 1 });
+    const PER_PAGE = 50;
+
+    // Draft = what user is editing; applied = what was last fetched
+    const [draft,    setDraft]    = useState(EMPTY_DRAFT);
+    const [applied,  setApplied]  = useState(EMPTY_DRAFT);
+
+    const load = async (p, f) => {
+        setLoading(true);
+        try {
+            const params = new URLSearchParams({ page: p, per_page: PER_PAGE });
+            if (f.module)      params.set('module',      f.module);
+            if (f.date)        params.set('date',        f.date);
+            if (f.user_id)     params.set('user_id',     f.user_id);
+            if (f.errors_only) params.set('errors_only', 'true');
+            if (f.min_rating)  params.set('min_rating',  f.min_rating);
+            const { data } = await api.get(`/admin/jobs?${params}`);
+            setJobs(data.items);
+            setMeta({ total: data.total, pages: data.pages, page: p });
+        } catch { toast.error('Ошибка загрузки'); }
+        finally  { setLoading(false); }
+    };
+
+    useEffect(() => {
+        api.get('/admin/users').then(({ data }) => setAllUsers(data)).catch(() => {});
+        load(1, EMPTY_DRAFT);
+    }, []); // eslint-disable-line
+
+    const applyFilters = () => { setApplied(draft); load(1, draft); };
+    const resetFilters = () => { setDraft(EMPTY_DRAFT); setApplied(EMPTY_DRAFT); load(1, EMPTY_DRAFT); };
+    const goPage       = (p) => load(p, applied);
+
+    const starsRender = (r) => {
+        if (!r.rating) return <span className="text-slate-300 text-xs">—</span>;
+        return (
+            <span className="flex items-center gap-0.5">
+                {[1,2,3,4,5].map(s => (
+                    <Star key={s} className={`w-3 h-3 ${s <= r.rating ? 'text-amber-400 fill-amber-400' : 'text-slate-200 fill-slate-200'}`} />
+                ))}
+            </span>
+        );
+    };
 
     const cols = [
-        { key: 'id',        label: 'ID',      render: r => <span className="font-mono text-[11px] text-slate-400">{String(r.id).substring(0, 8)}…</span> },
-        { key: 'user_id',   label: 'User',    render: r => <span className="font-mono text-xs">{r.user_id}</span> },
-        { key: 'mode',      label: 'Режим',   render: r => <span className="text-xs font-bold uppercase text-slate-500">{r.mode}</span> },
-        { key: 'status',    label: 'Статус',  render: r => <Badge value={r.status} map={statusBadge} /> },
-        { key: 'created_at',label: 'Создано', render: r => <span className="text-xs text-slate-400">{new Date(r.created_at).toLocaleString('ru-RU')}</span> },
+        { key: 'id',        label: 'ID',       render: r => <span className="font-mono text-[11px] text-slate-400">{String(r.id).substring(0, 8)}…</span> },
+        { key: 'username',  label: 'Юзер',     render: r => <span className="font-semibold text-slate-700 text-xs">{r.username}</span> },
+        { key: 'module',    label: 'Модуль',   render: r => <span className="text-xs font-bold uppercase text-indigo-600">{r.module}</span> },
+        { key: 'status',    label: 'Статус',   render: r => <Badge value={r.status} map={statusBadge} /> },
+        { key: 'rating',    label: 'Оценка',   render: starsRender },
+        { key: 'created_at',label: 'Создано',  render: r => <span className="text-xs text-slate-400">{new Date(r.created_at).toLocaleString('ru-RU')}</span> },
         {
             key: 'error_message', label: 'Ошибка', render: r => r.error_message
-                ? <span className="text-xs text-red-500 max-w-[200px] block truncate" title={r.error_message}>{r.error_message}</span>
+                ? <span className="text-xs text-red-500 max-w-[180px] block truncate" title={r.error_message}>{r.error_message}</span>
                 : <span className="text-slate-300">—</span>
         },
-        {
-            key: 'open', label: '', render: r => r.status === 'done' && (
-                <span className="text-xs text-primary font-medium">Открыть ↗</span>
-            )
-        },
+        { key: 'open', label: '', render: r => r.status === 'done' && <span className="text-xs text-primary font-medium">Открыть ↗</span> },
     ];
 
     return (
-        <SectionWrap title={`Все задания (${jobs.length})`} action={<Btn size="sm" variant="ghost" onClick={load}><RefreshCw className="w-3.5 h-3.5" />Обновить</Btn>}>
+        <SectionWrap title={`Сканирования (${meta.total})`} action={
+            <Btn size="sm" variant="ghost" onClick={() => load(meta.page, applied)}>
+                <RefreshCw className="w-3.5 h-3.5" />Обновить
+            </Btn>
+        }>
+            {/* ── Filter bar ── */}
+            <div className="px-5 py-3.5 bg-slate-50/70 border-b border-slate-100 flex flex-wrap gap-3 items-end">
+                <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Модуль</label>
+                    <select value={draft.module} onChange={e => setDraft(d => ({ ...d, module: e.target.value }))}
+                        className="h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:ring-2 focus:ring-primary outline-none">
+                        <option value="">Все</option>
+                        {MODULES_LIST.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Дата</label>
+                    <input type="date" value={draft.date} onChange={e => setDraft(d => ({ ...d, date: e.target.value }))}
+                        className="h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:ring-2 focus:ring-primary outline-none" />
+                </div>
+                <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Пользователь</label>
+                    <select value={draft.user_id} onChange={e => setDraft(d => ({ ...d, user_id: e.target.value }))}
+                        className="h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:ring-2 focus:ring-primary outline-none">
+                        <option value="">Все</option>
+                        {allUsers.map(u => <option key={u.id} value={u.id}>{u.username}</option>)}
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Оценка ≥</label>
+                    <select value={draft.min_rating} onChange={e => setDraft(d => ({ ...d, min_rating: e.target.value }))}
+                        className="h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:ring-2 focus:ring-primary outline-none">
+                        <option value="">Любая</option>
+                        {[1,2,3,4,5].map(r => <option key={r} value={r}>{r}★</option>)}
+                    </select>
+                </div>
+                <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer pb-0.5 select-none">
+                    <input type="checkbox" checked={draft.errors_only}
+                        onChange={e => setDraft(d => ({ ...d, errors_only: e.target.checked }))}
+                        className="rounded border-slate-300" />
+                    Только ошибки
+                </label>
+                <div className="flex gap-2 pb-0.5">
+                    <Btn size="sm" onClick={applyFilters}>Применить</Btn>
+                    <Btn size="sm" variant="ghost" onClick={resetFilters}>Сбросить</Btn>
+                </div>
+            </div>
+
+            {/* ── Table ── */}
             {loading
                 ? <div className="py-12 flex justify-center"><RefreshCw className="w-6 h-6 text-primary animate-spin" /></div>
-                : <DataTable
-                    cols={cols}
-                    rows={jobs}
-                    emptyText="Заданий нет"
-                    onRowClick={(row) => row.status === 'done' && navigate(`/result/${row.id}`)}
-                />}
+                : (
+                    <>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left text-slate-600">
+                                <thead className="bg-slate-50 text-xs text-slate-500 uppercase tracking-wider border-b border-slate-100">
+                                    <tr>{cols.map(c => <th key={c.key} className="px-5 py-3">{c.label}</th>)}</tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50">
+                                    {jobs.length === 0
+                                        ? <tr><td colSpan={cols.length} className="px-5 py-10 text-center text-slate-400 italic">Заданий не найдено</td></tr>
+                                        : jobs.map((row, i) => (
+                                            <tr key={i}
+                                                onClick={() => row.status === 'done' && navigate(`/result/${row.id}`)}
+                                                className={`hover:bg-slate-50/60 transition-colors ${row.status === 'done' ? 'cursor-pointer' : ''}`}
+                                            >
+                                                {cols.map(c => <td key={c.key} className="px-5 py-3">{c.render ? c.render(row) : row[c.key]}</td>)}
+                                            </tr>
+                                        ))
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* ── Pagination ── */}
+                        {meta.pages > 1 && (
+                            <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between bg-slate-50/40">
+                                <p className="text-xs text-slate-400">
+                                    Стр. {meta.page} из {meta.pages} · всего {meta.total}
+                                </p>
+                                <div className="flex items-center gap-1">
+                                    <button onClick={() => goPage(meta.page - 1)} disabled={meta.page === 1}
+                                        className="p-1.5 rounded-md hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                                        <ChevronLeft className="w-4 h-4 text-slate-600" />
+                                    </button>
+                                    {Array.from({ length: meta.pages }, (_, i) => i + 1)
+                                        .filter(p => p === 1 || p === meta.pages || Math.abs(p - meta.page) <= 1)
+                                        .reduce((acc, p, idx, arr) => {
+                                            if (idx > 0 && arr[idx - 1] !== p - 1) acc.push('...');
+                                            acc.push(p); return acc;
+                                        }, [])
+                                        .map((p, idx) => p === '...'
+                                            ? <span key={`d${idx}`} className="px-1 text-slate-400 text-xs">…</span>
+                                            : <button key={p} onClick={() => goPage(p)}
+                                                className={`min-w-[28px] h-7 rounded-md text-xs font-medium transition-colors
+                                                    ${meta.page === p ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-200'}`}>{p}</button>
+                                        )
+                                    }
+                                    <button onClick={() => goPage(meta.page + 1)} disabled={meta.page === meta.pages}
+                                        className="p-1.5 rounded-md hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                                        <ChevronRight className="w-4 h-4 text-slate-600" />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )
+            }
         </SectionWrap>
     );
 };
@@ -756,14 +973,21 @@ const AnalyticsSection = () => {
 };
 
 // ─── Main AdminDashboard ──────────────────────────────────────────────────────
-const SECTIONS = {
-    analytics: AnalyticsSection, users: UsersSection, jobs: JobsSection, doctypes: DocTypesSection,
-    contracts: ContractsSection, models: ModelsSection, apikeys: ApiKeysSection,
-};
-
 const AdminDashboard = () => {
     const [active, setActive] = useState('analytics');
-    const ActiveSection = SECTIONS[active];
+
+    const renderSection = () => {
+        switch (active) {
+            case 'analytics': return <AnalyticsSection />;
+            case 'users':     return <UsersSection onGoApiKeys={() => setActive('apikeys')} />;
+            case 'jobs':      return <JobsSection />;
+            case 'doctypes':  return <DocTypesSection />;
+            case 'contracts': return <ContractsSection />;
+            case 'models':    return <ModelsSection />;
+            case 'apikeys':   return <ApiKeysSection />;
+            default:          return null;
+        }
+    };
 
     return (
         <div className="flex gap-0 -mx-4 sm:-mx-6 lg:-mx-8 -my-8 min-h-[calc(100vh-64px)]">
@@ -794,7 +1018,7 @@ const AdminDashboard = () => {
                     <h1 className="text-lg font-bold text-slate-900">{NAV.find(n => n.id === active)?.label}</h1>
                 </div>
                 <div className="bg-white min-h-full shadow-sm">
-                    <ActiveSection />
+                    {renderSection()}
                 </div>
             </main>
         </div>

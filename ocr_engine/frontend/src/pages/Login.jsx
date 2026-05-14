@@ -83,6 +83,19 @@ const Login = ({ onLogin }) => {
                         Войти
                     </button>
                 </form>
+
+                <div className="mt-6 flex items-center gap-3">
+                    <div className="flex-1 h-px bg-slate-200" />
+                    <span className="text-xs text-slate-400">или</span>
+                    <div className="flex-1 h-px bg-slate-200" />
+                </div>
+
+                <button
+                    onClick={() => window.location.href = '/api/auth/adfs/login'}
+                    className="mt-4 w-full py-3 bg-white text-slate-700 font-medium rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+                >
+                    Войти через учётку Аскон'ы
+                </button>
             </div>
         </div>
     );
