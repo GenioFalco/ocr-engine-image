@@ -186,25 +186,6 @@ const UserDashboard = () => {
         setUploading(true);
         setTextResult(null);
 
-        // Модуль извлечения текста — отдельный лёгкий эндпоинт без LLM
-        if (moduleId === 'text-extract') {
-            try {
-                const item = selectedFiles[0]; // берём первый файл
-                const formData = new FormData();
-                formData.append('file', item.file);
-                const { data } = await api.post('/extract-text', formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' },
-                });
-                setTextResult({ ...data, filename: item.file.name });
-                toast.success(`Текст извлечён: ${data.total_pages} стр.`);
-            } catch (err) {
-                toast.error(err.response?.data?.detail || 'Ошибка извлечения текста');
-            }
-            setSelectedFiles([]);
-            setUploading(false);
-            return;
-        }
-
         const initialBatch = selectedFiles.map(({ id, file }) => ({
             id, name: file.name, size: file.size, file, status: 'queued', jobId: null, error: null,
         }));
