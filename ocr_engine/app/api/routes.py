@@ -358,11 +358,6 @@ def get_quota(db: Session = Depends(get_db), admin: User = Depends(get_current_a
     model_name = active_model.model_name if active_model else "unknown"
     provider = active_model.provider if active_model else "unknown"
 
-    # Токены за сегодня
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    today_tokens = db.query(func.sum(func.cast(Log.message, db.bind.dialect.name == 'postgresql' and 'INTEGER' or 'INTEGER')))\
-        .filter(Log.stage == "TOKENS_USED", Log.created_at >= today_start).scalar()
-
     # За последние 7 дней по дням
     days_stats = []
     for i in range(6, -1, -1):
