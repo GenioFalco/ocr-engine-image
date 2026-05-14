@@ -4,12 +4,8 @@ import api from '../api';
 import { toast } from '../components/Toast';
 import {
     Upload, X, FileText, Scale, Scan, CheckCircle, AlertCircle,
-<<<<<<< HEAD
-    RefreshCw, Loader2, History, ChevronRight, ArrowLeft, AlignLeft, Copy
-=======
-    RefreshCw, Loader2, History, ChevronRight, ArrowLeft, AlignLeft,
+    RefreshCw, Loader2, History, ChevronRight, ArrowLeft, AlignLeft, Copy,
     Package,
->>>>>>> main
 } from 'lucide-react';
 
 // ── Module config ─────────────────────────────────────────────────────────────
