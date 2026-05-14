@@ -348,6 +348,72 @@ def get_analytics(db: Session = Depends(get_db), admin: User = Depends(get_curre
         "rating_distribution": rating_dist
     }
 
+@router.get("/admin/quota")
+def get_quota(db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
+    """Статистика использования токенов LLM по дням."""
+    from app.models.models import Log, Model
+    from datetime import date, timedelta
+
+    active_model = db.query(Model).filter(Model.is_active == True).first()
+    model_name = active_model.model_name if active_model else "unknown"
+    provider = active_model.provider if active_model else "unknown"
+
+    # Токены за сегодня
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_tokens = db.query(func.sum(func.cast(Log.message, db.bind.dialect.name == 'postgresql' and 'INTEGER' or 'INTEGER')))\
+        .filter(Log.stage == "TOKENS_USED", Log.created_at >= today_start).scalar()
+
+    # За последние 7 дней по дням
+    days_stats = []
+    for i in range(6, -1, -1):
+        day_start = (datetime.utcnow() - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timedelta(days=1)
+        rows = db.query(Log.message).filter(
+            Log.stage == "TOKENS_USED",
+            Log.created_at >= day_start,
+            Log.created_at < day_end
+        ).all()
+        total = sum(int(r.message) for r in rows if r.message.isdigit())
+        days_stats.append({
+            "date": day_start.strftime("%d.%m"),
+            "tokens": total,
+            "requests": len(rows)
+        })
+
+    # Всего за всё время
+    all_rows = db.query(Log.message).filter(Log.stage == "TOKENS_USED").all()
+    total_all_time = sum(int(r.message) for r in all_rows if r.message.isdigit())
+
+    # Тест подключения к LLM
+    llm_status = "unknown"
+    try:
+        from app.engine.pipeline import OCREngine
+        engine = OCREngine.__new__(OCREngine)
+        engine.job_id = None
+        engine.db = db
+        provider_obj = engine._get_llm_provider()
+        provider_name = provider_obj.__class__.__name__.replace("Provider", "")
+        llm_status = "ok"
+    except Exception as e:
+        provider_name = provider
+        llm_status = f"error: {str(e)[:100]}"
+
+    today_total = days_stats[-1]["tokens"] if days_stats else 0
+
+    return {
+        "model": model_name,
+        "provider": provider_name,
+        "llm_status": llm_status,
+        "today": {
+            "tokens": today_total,
+            "requests": days_stats[-1]["requests"] if days_stats else 0
+        },
+        "total_all_time": total_all_time,
+        "days": days_stats,
+        "free_tier_limit": 1_000_000,
+        "free_tier_remaining": max(0, 1_000_000 - total_all_time)
+    }
+
 # --- Management API ---
 from app.schemas.admin import DocumentTypeCreate, ContractCreate, ModelCreate
 from app.models.models import DocumentType, Contract, Model

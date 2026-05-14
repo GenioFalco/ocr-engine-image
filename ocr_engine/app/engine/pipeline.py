@@ -422,6 +422,8 @@ class OCREngine:
                 # LLM Call
                 extraction_result = self.llm_provider.extract_document(group_images_data, json_schema)
                 self.detail_log("EXTRACTION_RESULT", f"Doc {doc_type_name} Raw LLM Response:\n{extraction_result.raw_response}")
+                if extraction_result.tokens_used:
+                    self.log("TOKENS_USED", str(extraction_result.tokens_used))
 
                 # Post-process: validate INN/KPP digit counts
                 extraction_result.fields = self._validate_inn_kpp(extraction_result.fields)

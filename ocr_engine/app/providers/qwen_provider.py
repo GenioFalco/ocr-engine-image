@@ -241,11 +241,18 @@ class QwenProvider(BaseLLM):
                 if isinstance(s, str):
                     signatures[signatures.index(s)] = {"value": s}
 
+            tokens_used = 0
+            try:
+                tokens_used = response.usage.total_tokens or 0
+            except Exception:
+                pass
+
             return ExtractionResult(
                 fields=data,
                 stamps=stamps,
                 signatures=signatures,
-                raw_response=raw_response
+                raw_response=raw_response,
+                tokens_used=tokens_used
             )
 
         except Exception as e:

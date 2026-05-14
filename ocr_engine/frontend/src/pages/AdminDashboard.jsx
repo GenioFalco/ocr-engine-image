@@ -632,6 +632,71 @@ const ContractsSection = () => {
 };
 
 // ─── Section: AI Models ───────────────────────────────────────────────────────
+const QuotaWidget = () => {
+    const [quota, setQuota] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        api.get('/admin/quota').then(({ data }) => { setQuota(data); setLoading(false); }).catch(() => setLoading(false));
+    }, []);
+
+    if (loading) return <div className="flex items-center gap-2 text-sm text-slate-400 py-2"><RefreshCw className="w-4 h-4 animate-spin" /> Загрузка статистики токенов...</div>;
+    if (!quota) return null;
+
+    const usedPct = quota.free_tier_limit > 0 ? Math.min(100, (quota.total_all_time / quota.free_tier_limit) * 100) : 0;
+    const barColor = usedPct > 90 ? 'bg-red-500' : usedPct > 70 ? 'bg-amber-400' : 'bg-emerald-500';
+
+    return (
+        <div className="bg-white border border-slate-200 rounded-xl p-5 mb-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+                <div>
+                    <h3 className="text-sm font-semibold text-slate-800">Использование API</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                        <span className="font-mono font-semibold text-slate-600">{quota.model}</span>
+                        {' · '}
+                        <span className={`font-semibold ${quota.llm_status === 'ok' ? 'text-emerald-600' : 'text-red-500'}`}>
+                            {quota.llm_status === 'ok' ? '● Онлайн' : '● Недоступна'}
+                        </span>
+                    </p>
+                </div>
+                <div className="text-right">
+                    <p className="text-xs text-slate-400">Сегодня</p>
+                    <p className="text-lg font-bold text-slate-800">{quota.today.tokens.toLocaleString()} <span className="text-xs font-normal text-slate-400">токенов</span></p>
+                    <p className="text-xs text-slate-400">{quota.today.requests} запросов</p>
+                </div>
+            </div>
+
+            <div className="mb-3">
+                <div className="flex justify-between text-xs text-slate-500 mb-1">
+                    <span>Бесплатный лимит</span>
+                    <span>{quota.total_all_time.toLocaleString()} / {quota.free_tier_limit.toLocaleString()} токенов</span>
+                </div>
+                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div className={`h-2 rounded-full transition-all ${barColor}`} style={{ width: `${usedPct}%` }} />
+                </div>
+                <p className="text-xs text-slate-400 mt-1">
+                    Осталось: <span className="font-semibold text-slate-600">{quota.free_tier_remaining.toLocaleString()} токенов</span>
+                    {' · '}~{Math.round(quota.free_tier_remaining / 5000)} документов
+                </p>
+            </div>
+
+            <div className="grid grid-cols-7 gap-1 mt-3">
+                {quota.days.map((d, i) => (
+                    <div key={i} className="flex flex-col items-center gap-1">
+                        <div className="w-full flex items-end justify-center" style={{ height: 40 }}>
+                            <div
+                                className="w-full rounded-sm bg-sky-400 opacity-80 min-h-[2px]"
+                                style={{ height: `${quota.days.reduce((m, x) => Math.max(m, x.tokens), 1) > 0 ? Math.max(4, (d.tokens / Math.max(...quota.days.map(x => x.tokens), 1)) * 40) : 4}px` }}
+                            />
+                        </div>
+                        <span className="text-[10px] text-slate-400">{d.date}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 const ModelsSection = () => {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -729,6 +794,7 @@ const ModelsSection = () => {
                     </form>
                 </div>
             )}
+            <QuotaWidget />
             {loading
                 ? <div className="py-12 flex justify-center"><RefreshCw className="w-6 h-6 text-primary animate-spin" /></div>
                 : <DataTable cols={cols} rows={items} emptyText="Моделей нет" />}
