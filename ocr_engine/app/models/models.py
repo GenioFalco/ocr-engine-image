@@ -123,10 +123,14 @@ class Log(Base):
 class ApiKey(Base):
     __tablename__ = "api_keys"
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     client_id = Column(String, unique=True, index=True, nullable=False)
     client_secret_hash = Column(String, nullable=False)
-    description = Column(String, nullable=True)  # для чего ключ, кому выдан
+    label = Column(String, nullable=True)
+    description = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     last_used_at = Column(DateTime, nullable=True)
+
+    user = relationship("User")
 
