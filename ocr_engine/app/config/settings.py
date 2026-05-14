@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     # Auth
     SECRET_KEY: str = "secret-key-change-it-in-prod"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 480       # токен AD FS — 8 часов
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30        # токен AD FS / логин — 30 минут
     API_KEY_TOKEN_EXPIRE_MINUTES: int = 30       # токен по API ключу — 30 минут
 
     # SAML 2.0 (AD FS)

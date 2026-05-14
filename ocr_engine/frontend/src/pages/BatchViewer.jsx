@@ -1,10 +1,62 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api';
-import { ArrowLeft, Check, Copy, AlertCircle, RefreshCw, FileText, Building, List, Download } from 'lucide-react';
+import { ArrowLeft, Check, Copy, AlertCircle, RefreshCw, FileText, Building, List, Download, Star } from 'lucide-react';
 import { exportClosingDocsToExcel } from '../utils/excel';
 
-// ── re-used helpers (same as ResultViewer) ────────────────────────────────────
+// ── Closing-docs helpers (same logic as ResultViewer / excel.js) ──────────────
+const getValue = (flatData, keys) => {
+    for (const key of keys) {
+        const nk = key.toLowerCase().replace(/[^a-zа-яё0-9]/g, '');
+        for (const [rk, val] of Object.entries(flatData)) {
+            if (rk.toLowerCase().replace(/[^a-zа-яё0-9]/g, '') === nk && val != null && val !== '' && val !== 'null')
+                return val;
+        }
+    }
+    for (const key of keys) {
+        const nk = key.toLowerCase().replace(/[^a-zа-яё0-9]/g, '');
+        if (nk.length < 3) continue;
+        for (const [rk, val] of Object.entries(flatData)) {
+            if (rk.toLowerCase().replace(/[^a-zа-яё0-9]/g, '').includes(nk) && val != null && val !== '' && val !== 'null')
+                return val;
+        }
+    }
+    return '';
+};
+
+const flattenObj = (obj, prefix = '') => {
+    const r = {};
+    if (!obj || typeof obj !== 'object') return r;
+    for (const [k, v] of Object.entries(obj)) {
+        const key = prefix ? `${prefix} ${k}` : k;
+        if (Array.isArray(v)) continue;
+        if (v && typeof v === 'object' && 'value' in v) { if (v.value != null) r[key] = String(v.value); }
+        else if (v && typeof v === 'object') Object.assign(r, flattenObj(v, key));
+        else if (v != null) r[key] = String(v);
+    }
+    return r;
+};
+
+const findMainTable = (obj) => {
+    let arr = [];
+    const s = (x) => {
+        if (Array.isArray(x)) { if (x.length > arr.length) arr = x; }
+        else if (x && typeof x === 'object' && !('value' in x)) Object.values(x).forEach(s);
+    };
+    s(obj);
+    return arr;
+};
+
+const parseFieldsSafe = (f) => {
+    if (!f) return {};
+    const r = {};
+    for (const [k, v] of Object.entries(f)) {
+        if (typeof v === 'string') { try { r[k] = JSON.parse(v); } catch { r[k] = v; } } else r[k] = v;
+    }
+    return r;
+};
+
+// ── re-used helpers (standard layout) ────────────────────────────────────────
 const formatCurrency = (value) => {
     if (value == null || value === '' || value === '-' || !Number(value)) return value || '-';
     return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: 2 }).format(value);
@@ -20,7 +72,8 @@ const parseFields = (fieldsObj) => {
     return parsed;
 };
 
-const Field = ({ fieldId, label, value, onCopy, copiedKey }) => {
+// ── Shared UI components ──────────────────────────────────────────────────────
+const FieldRow = ({ fieldId, label, value, onCopy, copiedKey }) => {
     const displayVal = value === null || value === undefined || value === '' ? null : String(value);
     if (!displayVal) return null;
     return (
@@ -47,6 +100,7 @@ const Card = ({ title, icon: Icon, children }) => (
     </div>
 );
 
+// ── Standard document result ──────────────────────────────────────────────────
 const DocResult = ({ doc, idx, copiedKey, onCopy }) => {
     const structured = parseFields(doc.fields || {});
     const primitives = {}, objects = {}, arrays = {};
@@ -70,7 +124,7 @@ const DocResult = ({ doc, idx, copiedKey, onCopy }) => {
                 <Card title="Основная информация" icon={FileText}>
                     {Object.entries(primitives).map(([k, v]) => {
                         const val = typeof v === 'object' && v !== null && 'value' in v ? v.value : v;
-                        return <Field key={k} fieldId={`${idx}-${k}`} label={k.replace(/_/g, ' ')} value={val} onCopy={onCopy} copiedKey={copiedKey} />;
+                        return <FieldRow key={k} fieldId={`${idx}-${k}`} label={k.replace(/_/g, ' ')} value={val} onCopy={onCopy} copiedKey={copiedKey} />;
                     })}
                 </Card>
             )}
@@ -78,7 +132,7 @@ const DocResult = ({ doc, idx, copiedKey, onCopy }) => {
                 <Card key={objKey} title={objKey.replace(/_/g, ' ').toUpperCase()} icon={Building}>
                     {Object.entries(objVal).map(([sk, sv]) => {
                         const val = typeof sv === 'object' && sv !== null && 'value' in sv ? sv.value : sv;
-                        return <Field key={sk} fieldId={`${idx}-${objKey}-${sk}`} label={sk.replace(/_/g, ' ')} value={val} onCopy={onCopy} copiedKey={copiedKey} />;
+                        return <FieldRow key={sk} fieldId={`${idx}-${objKey}-${sk}`} label={sk.replace(/_/g, ' ')} value={val} onCopy={onCopy} copiedKey={copiedKey} />;
                     })}
                 </Card>
             ))}
@@ -116,17 +170,136 @@ const DocResult = ({ doc, idx, copiedKey, onCopy }) => {
     );
 };
 
+// ── Closing-docs document result ──────────────────────────────────────────────
+const ClosingDocResult = ({ doc, idx, copiedKey, onCopy }) => {
+    const structured = parseFieldsSafe(doc.fields || {});
+    const { visual_marks: _vm, ...fieldsData } = structured;
+    const flat = flattenObj(fieldsData);
+
+    // Prefer explicit 'items' key; fall back to findMainTable
+    const table = (Array.isArray(fieldsData.items) && fieldsData.items.length > 0)
+        ? fieldsData.items
+        : findMainTable(fieldsData);
+
+    const org        = getValue(flat, ['buyer_inn', 'buyer inn', 'инн_покупателя', 'инн_заказчика', 'покупатель_инн']);
+    const contrName  = getValue(flat, ['seller_name', 'seller name', 'наименование_продавца', 'имя_продавца']);
+    const contrINN   = getValue(flat, ['seller_inn', 'seller inn', 'инн_продавца', 'инн_исполнителя', 'продавца_инн', 'consignor_inn', 'consignor inn']);
+    const docNum     = getValue(flat, ['document_number', 'номер_документа', 'номер_счета', 'номер']);
+    // Сумма: total_with_vat должен быть раньше чем просто total (иначе subtotal матчится первым)
+    const docSum     = getValue(flat, [
+        'total_with_vat', 'amounts total_with_vat', 'итого_с_ндс', 'сумма_с_ндс',
+        'total_amount', 'amount', 'итого', 'сумма_документа',
+    ]);
+    // Договор: basis_document → contract_*
+    const basisType   = getValue(flat, ['basis_document type', 'basis document type']);
+    const basisNumber = getValue(flat, ['basis_document number', 'basis document number', 'contract_number', 'номер_договора', 'договор_номер']);
+    const basisDate   = getValue(flat, ['basis_document date', 'basis document date']);
+    const contractTitle = getValue(flat, ['contract_title', 'договор', 'основание']);
+    const contract    = contractTitle
+        || [basisType, basisNumber, basisDate ? `от ${basisDate}` : ''].filter(Boolean).join(' ');
+    const docDate     = getValue(flat, ['document_date', 'дата_документа', 'дата']);
+    const vatRate     = getValue(flat, ['vat_rate', 'ставка_ндс', 'ндс_ставка'])
+        || (table.length > 0 ? getValue(flattenObj(table[0]), ['vat_rate', 'ставка_ндс', 'ндс_ставка']) : '');
+
+    const requisitesText = [
+        `Контрагент: ${contrName || contrINN || '-'}`,
+        `ИНН продавца: ${contrINN || '-'}`,
+        `Номер документа: ${docNum || '-'}`,
+        `Сумма с НДС: ${docSum || '-'}`,
+        `Договор: ${contract || '-'}`,
+    ].join('\n');
+
+    const tableText = table.length > 0 ? table.map(item => {
+        const f = flattenObj(item);
+        const name  = getValue(f, ['name', 'description', 'наименование', 'товар', 'услуга']) || '-';
+        const qty   = getValue(f, ['quantity', 'количество', 'кол-во', 'qty']) || '-';
+        const price = getValue(f, ['price_without_vat', 'unit_price', 'price', 'цена']) || '-';
+        const sub   = getValue(f, ['amount_without_vat', 'subtotal', 'сумма_без_ндс', 'сумма']) || '-';
+        const vat   = getValue(f, ['vat_rate', 'ставка_ндс']) || '-';
+        const tax   = getValue(f, ['vat_amount', 'сумма_ндс', 'ндс']) || '-';
+        const tot   = getValue(f, ['amount_with_vat', 'total', 'total_amount', 'итого']) || '-';
+        return `Наименование: ${name}, Кол-во: ${qty}, Цена: ${price}, Без налога: ${sub}, НДС%: ${vat}, НДС: ${tax}, Итого: ${tot}`;
+    }).join('\n') : '-';
+
+    const cols = [
+        { label: 'Организация (ИНН покупателя)', value: org || '-', id: `cd-org-${idx}` },
+        { label: 'Реквизиты контрагента', value: requisitesText, id: `cd-req-${idx}`, multi: true },
+        { label: 'Дата документа', value: docDate || '-', id: `cd-date-${idx}` },
+        { label: 'Ставка НДС', value: vatRate || '-', id: `cd-vat-${idx}` },
+        { label: 'Договор / Основание', value: contract || '-', id: `cd-contr-${idx}` },
+        { label: 'Вид документа', value: doc.document_type || '-', id: `cd-type-${idx}` },
+        { label: 'Таблица товаров / услуг', value: tableText, id: `cd-table-${idx}`, multi: true },
+    ];
+
+    return (
+        <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-bold text-slate-900">{doc.document_type || 'Документ'}</h2>
+                {doc.confidence && (
+                    <span className="text-xs font-bold px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full">
+                        Точность: {(doc.confidence * 100).toFixed(0)}%
+                    </span>
+                )}
+            </div>
+            <div className="space-y-2">
+                {cols.map(col => (
+                    <div key={col.id} className="bg-white rounded-xl border border-slate-200 px-4 py-3 flex items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-1">{col.label}</div>
+                            {col.multi ? (
+                                <pre className="text-sm text-slate-800 whitespace-pre-wrap font-sans leading-relaxed">
+                                    {col.value}
+                                </pre>
+                            ) : (
+                                <div className="text-sm font-medium text-slate-800">{col.value}</div>
+                            )}
+                        </div>
+                        <button
+                            onClick={() => onCopy(col.id, col.value)}
+                            className="shrink-0 h-6 px-2 inline-flex items-center gap-1 text-xs font-medium text-slate-500
+                                bg-white border border-slate-200 rounded hover:border-sky-400 hover:text-sky-600
+                                transition-colors shadow-sm"
+                        >
+                            {copiedKey === col.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                        </button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 // ── BatchViewer page ──────────────────────────────────────────────────────────
 const BatchViewer = () => {
     const { jobIds } = useParams();
+    const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const ids = jobIds ? jobIds.split(',').filter(Boolean) : [];
+
+    // Module is passed explicitly in URL (?module=closing-docs) — no need to infer from loaded data
+    const batchModule = searchParams.get('module') || 'standard';
+    const isClosingDocs = batchModule === 'closing-docs';
 
     const [selectedIdx, setSelectedIdx] = useState(0);
     const [results, setResults] = useState({}); // jobId → data
     const [loading, setLoading] = useState({});  // jobId → bool
     const [errors, setErrors] = useState({});    // jobId → string
     const [copiedKey, setCopiedKey] = useState(null);
+
+    // ── Per-job ratings ───────────────────────────────────────────────────────
+    const [ratings, setRatings] = useState({});          // jobId → 1-5
+    const [hoverRating, setHoverRating] = useState({});  // jobId → 1-5
+    const [submittingRating, setSubmittingRating] = useState({}); // jobId → bool
+
+    const handleRating = async (jobId, val) => {
+        if (submittingRating[jobId]) return;
+        setSubmittingRating(r => ({ ...r, [jobId]: true }));
+        try {
+            await api.post('/feedback', { job_id: jobId, rating: val });
+            setRatings(r => ({ ...r, [jobId]: val }));
+        } catch { }
+        finally { setSubmittingRating(r => ({ ...r, [jobId]: false })); }
+    };
 
     const onCopy = (key, text) => {
         navigator.clipboard.writeText(String(text));
@@ -139,6 +312,8 @@ const BatchViewer = () => {
         try {
             const { data } = await api.get(`/result/${jobId}`);
             setResults(r => ({ ...r, [jobId]: data }));
+            // Pre-fill existing rating if the job already has one
+            if (data.rating) setRatings(r => ({ ...r, [jobId]: data.rating }));
         } catch { setErrors(e => ({ ...e, [jobId]: 'Ошибка загрузки' })); }
         finally { setLoading(l => ({ ...l, [jobId]: false })); }
     };
@@ -155,13 +330,15 @@ const BatchViewer = () => {
     const iframeUrl = currentId ? `/api/preview/${currentId}?token=${token}` : null;
 
     const handleExportExcel = () => {
-        const allDocs = [];
-        ids.forEach(id => {
-            if (results[id] && results[id].documents) {
-                allDocs.push(...results[id].documents);
-            }
-        });
-        if (allDocs.length > 0) exportClosingDocsToExcel(allDocs);
+        const jobNames = (() => { try { return JSON.parse(localStorage.getItem('ocr_job_names') || '{}'); } catch { return {}; } })();
+        const jobResults = ids
+            .filter(id => results[id]?.documents?.length)
+            .map(id => ({
+                jobId: id,
+                filename: jobNames[id] || id,
+                documents: results[id].documents,
+            }));
+        if (jobResults.length > 0) exportClosingDocsToExcel(jobResults);
     };
 
     return (
@@ -175,14 +352,16 @@ const BatchViewer = () => {
                     <span className="text-slate-200">|</span>
                     <p className="text-sm font-semibold text-slate-700">Пакет: {ids.length} документ(ов)</p>
                 </div>
-                
-                <button 
-                    onClick={handleExportExcel}
-                    className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 text-sm font-semibold rounded-lg hover:bg-emerald-100 transition-colors border border-emerald-200 shadow-sm"
-                >
-                    <Download className="w-4 h-4" />
-                    Экспорт в Excel
-                </button>
+
+                {isClosingDocs && (
+                    <button
+                        onClick={handleExportExcel}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 text-sm font-semibold rounded-lg hover:bg-emerald-100 transition-colors border border-emerald-200 shadow-sm"
+                    >
+                        <Download className="w-4 h-4" />
+                        Экспорт в Excel
+                    </button>
+                )}
             </div>
 
             <div className="flex flex-1 min-h-0">
@@ -196,6 +375,8 @@ const BatchViewer = () => {
                             const res = results[id];
                             const docType = res?.documents?.[0]?.document_type || `Файл ${i + 1}`;
                             const isActive = i === selectedIdx;
+                            const jobRating = ratings[id] || 0;
+                            const jobHover = hoverRating[id] || 0;
                             return (
                                 <button key={id} onClick={() => setSelectedIdx(i)}
                                     className={`text-left px-3 py-2.5 rounded-lg text-xs font-medium transition-colors w-full
@@ -204,6 +385,26 @@ const BatchViewer = () => {
                                     <div className={`text-[10px] mt-0.5 truncate font-mono ${isActive ? 'text-slate-400' : 'text-slate-400'}`}>{id.substring(0, 8)}…</div>
                                     {loading[id] && <div className="mt-1 text-[10px] text-blue-400">загрузка…</div>}
                                     {errors[id] && <div className="mt-1 text-[10px] text-red-400">ошибка</div>}
+                                    {res && !loading[id] && !errors[id] && (
+                                        <div className="flex items-center gap-0.5 mt-1.5" onClick={e => e.stopPropagation()}>
+                                            {[1,2,3,4,5].map(val => (
+                                                <button
+                                                    key={val}
+                                                    disabled={submittingRating[id]}
+                                                    onClick={() => handleRating(id, val)}
+                                                    onMouseEnter={() => setHoverRating(h => ({ ...h, [id]: val }))}
+                                                    onMouseLeave={() => setHoverRating(h => ({ ...h, [id]: 0 }))}
+                                                    className="focus:outline-none transition-transform hover:scale-110 disabled:opacity-40"
+                                                >
+                                                    <Star className={`w-3 h-3 transition-colors ${
+                                                        (jobHover || jobRating) >= val
+                                                            ? 'fill-amber-400 text-amber-400'
+                                                            : isActive ? 'text-slate-500' : 'text-slate-300'
+                                                    }`} />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
                                 </button>
                             );
                         })}
@@ -226,7 +427,33 @@ const BatchViewer = () => {
                 </div>
 
                 {/* Results panel */}
-                <div className="flex-1 overflow-y-auto bg-slate-50/40 p-6">
+                <div className="flex-1 flex flex-col min-h-0 bg-slate-50/40">
+                {/* Rating bar for current job */}
+                {currentId && currentResult && !isLoading && (
+                    <div className="px-5 py-2 bg-white border-b border-slate-100 flex items-center gap-2 shrink-0">
+                        <span className="text-xs text-slate-400 font-medium">Оценить результат:</span>
+                        {[1,2,3,4,5].map(val => (
+                            <button
+                                key={val}
+                                disabled={submittingRating[currentId]}
+                                onClick={() => handleRating(currentId, val)}
+                                onMouseEnter={() => setHoverRating(h => ({ ...h, [currentId]: val }))}
+                                onMouseLeave={() => setHoverRating(h => ({ ...h, [currentId]: 0 }))}
+                                className="focus:outline-none transition-transform hover:scale-110 disabled:opacity-40"
+                            >
+                                <Star className={`w-4 h-4 transition-colors ${
+                                    ((hoverRating[currentId] || 0) || (ratings[currentId] || 0)) >= val
+                                        ? 'fill-amber-400 text-amber-400'
+                                        : 'text-slate-300'
+                                }`} />
+                            </button>
+                        ))}
+                        {ratings[currentId] && (
+                            <span className="text-xs text-slate-400 ml-1">({ratings[currentId]}/5)</span>
+                        )}
+                    </div>
+                )}
+                <div className="flex-1 overflow-y-auto p-6">
                     {isLoading && (
                         <div className="h-48 flex flex-col items-center justify-center gap-3">
                             <RefreshCw className="w-7 h-7 text-primary animate-spin" />
@@ -240,11 +467,16 @@ const BatchViewer = () => {
                         </div>
                     )}
                     {currentResult && !isLoading && (
-                        (currentResult.documents || []).map((doc, idx) => (
-                            <DocResult key={idx} doc={doc} idx={`${selectedIdx}-${idx}`} copiedKey={copiedKey} onCopy={onCopy} />
-                        ))
+                        isClosingDocs
+                            ? (currentResult.documents || []).map((doc, idx) => (
+                                <ClosingDocResult key={idx} doc={doc} idx={`${selectedIdx}-${idx}`} copiedKey={copiedKey} onCopy={onCopy} />
+                            ))
+                            : (currentResult.documents || []).map((doc, idx) => (
+                                <DocResult key={idx} doc={doc} idx={`${selectedIdx}-${idx}`} copiedKey={copiedKey} onCopy={onCopy} />
+                            ))
                     )}
-                </div>
+                </div>{/* overflow-y-auto */}
+                </div>{/* flex-1 flex-col */}
             </div>
         </div>
     );

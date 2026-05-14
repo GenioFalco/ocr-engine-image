@@ -7,8 +7,8 @@ class UserBase(BaseModel):
     email: Optional[EmailStr] = None
 
 class UserCreate(UserBase):
-    password: str
-    role: Optional[str] = 'user'  # 'user' or 'robot'
+    password: Optional[str] = None   # Not required for robots
+    role: Optional[str] = 'user'     # 'user' or 'robot'
 
 class UserResponse(UserBase):
     id: int

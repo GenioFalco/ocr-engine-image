@@ -95,7 +95,7 @@ const Login = ({ onLogin }) => {
                     className="flex items-center justify-center gap-3 w-full py-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-slate-700 font-medium"
                 >
                     <img src="/askona-logo.svg" alt="Askona" className="h-5" onError={(e) => e.target.style.display='none'} />
-                    Войти через учётку Askon'ы
+                    Войти через учётку Аскон'ы
                 </a>
             </div>
         </div>

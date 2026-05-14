@@ -194,16 +194,118 @@ async def get_preview(
     return FileResponse(file_path, media_type="application/pdf")
 
 @router.get("/jobs")
-async def get_user_jobs(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """Fetch all jobs for the currently authenticated user."""
-    jobs = db.query(ProcessingJob).filter(ProcessingJob.user_id == current_user.id).order_by(ProcessingJob.created_at.desc()).all()
-    return [{"id": j.id, "mode": j.mode, "status": j.status, "created_at": j.created_at, "error_message": j.error_message} for j in jobs]
+async def get_user_jobs(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    page: int = 1,
+    per_page: int = 50,
+    module: str = None,
+    date: str = None,  # YYYY-MM-DD
+):
+    """Fetch jobs for the current user with optional pagination and filters."""
+    query = db.query(ProcessingJob).filter(ProcessingJob.user_id == current_user.id)
+    if module:
+        query = query.filter(ProcessingJob.module == module)
+    if date:
+        try:
+            from datetime import date as date_type
+            d = datetime.strptime(date, "%Y-%m-%d").date()
+            query = query.filter(func.date(ProcessingJob.created_at) == d)
+        except ValueError:
+            pass
+    total = query.count()
+    per_page = max(1, min(per_page, 200))
+    page = max(1, page)
+    jobs = query.order_by(ProcessingJob.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+    return {
+        "items": [{"id": str(j.id), "mode": j.mode, "module": j.module, "status": j.status, "created_at": j.created_at, "error_message": j.error_message} for j in jobs],
+        "total": total,
+        "page": page,
+        "pages": max(1, (total + per_page - 1) // per_page),
+        "per_page": per_page,
+    }
 
 @router.get("/admin/jobs")
-async def get_all_jobs(db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
-    """Fetch all jobs across all users (Admin only)."""
-    jobs = db.query(ProcessingJob).order_by(ProcessingJob.created_at.desc()).all()
-    return [{"id": j.id, "user_id": j.user_id, "mode": j.mode, "status": j.status, "created_at": j.created_at, "error_message": j.error_message} for j in jobs]
+async def get_all_jobs(
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin_user),
+    page: int = 1,
+    per_page: int = 50,
+    module: str = None,
+    date: str = None,       # YYYY-MM-DD
+    user_id: int = None,
+    errors_only: bool = False,
+    min_rating: int = None,
+):
+    """Fetch all jobs across all users with filters and pagination (Admin only)."""
+    query = db.query(ProcessingJob)
+    if module:
+        query = query.filter(ProcessingJob.module == module)
+    if date:
+        try:
+            from datetime import date as _date_t
+            d = datetime.strptime(date, "%Y-%m-%d").date()
+            query = query.filter(func.date(ProcessingJob.created_at) == d)
+        except ValueError:
+            pass
+    if user_id:
+        query = query.filter(ProcessingJob.user_id == user_id)
+    if errors_only:
+        query = query.filter(ProcessingJob.status == "failed")
+    if min_rating is not None:
+        query = query.join(JobFeedback, ProcessingJob.id == JobFeedback.job_id).filter(JobFeedback.rating >= min_rating)
+
+    total = query.count()
+    per_page = max(1, min(per_page, 200))
+    page = max(1, page)
+    jobs = query.order_by(ProcessingJob.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+
+    # Build username map
+    uid_set = list({j.user_id for j in jobs})
+    users_map = {}
+    if uid_set:
+        users_map = {u.id: u.username for u in db.query(User).filter(User.id.in_(uid_set)).all()}
+
+    # Build rating map
+    job_ids = [j.id for j in jobs]
+    ratings_map = {}
+    if job_ids:
+        ratings_map = {f.job_id: f.rating for f in db.query(JobFeedback).filter(JobFeedback.job_id.in_(job_ids)).all()}
+
+    return {
+        "items": [{
+            "id": str(j.id),
+            "user_id": j.user_id,
+            "username": users_map.get(j.user_id, "?"),
+            "mode": j.mode,
+            "module": j.module or "—",
+            "status": j.status,
+            "created_at": j.created_at,
+            "error_message": j.error_message,
+            "rating": ratings_map.get(j.id),
+        } for j in jobs],
+        "total": total,
+        "page": page,
+        "pages": max(1, (total + per_page - 1) // per_page),
+        "per_page": per_page,
+    }
+
+
+@router.delete("/admin/users/{user_id}")
+def delete_user(user_id: int, db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
+    """Delete a user account (Admin only). Cannot delete admin accounts."""
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    if target.role == "admin":
+        raise HTTPException(status_code=400, detail="Cannot delete admin accounts")
+    try:
+        db.delete(target)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Cannot delete user: {str(e)}")
+    return {"status": "deleted", "id": user_id}
 
 @router.post("/feedback")
 def submit_feedback(data: FeedbackCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

@@ -236,23 +236,35 @@ const ResultViewer = () => {
             ? fieldsData.items
             : findMainTable(fieldsData);
 
-        // Ищем строго ИНН — убраны общие 'buyer'/'seller' которые матчат и name, и address
+        // ИНН покупателя
         const org      = getValue(flat, ['buyer_inn','buyer inn','инн_покупателя','инн_заказчика','покупатель_инн']);
-        const contrINN = getValue(flat, ['seller_inn','seller inn','инн_продавца','инн_исполнителя','продавца_инн','consignor_inn','consignor inn']);
-        const docNum = getValue(flat, ['document_number','номер_документа','номер_счета','номер']);
-        const docSum = getValue(flat, ['total_amount','amount','total','сумма_документа','итого']);
-        const contrNum = getValue(flat, ['contract_number','номер_договора','договор_номер']);
-        const docDate = getValue(flat, ['document_date','дата_документа','дата']);
-        // vat_rate often lives only inside items[0], not at top level — check both
-        const vatRate = getValue(flat, ['vat_rate','ставка_ндс','ндс_ставка'])
+        // Продавец
+        const contrName = getValue(flat, ['seller_name','seller name','наименование_продавца','имя_продавца']);
+        const contrINN  = getValue(flat, ['seller_inn','seller inn','инн_продавца','инн_исполнителя','продавца_инн','consignor_inn','consignor inn']);
+        const docNum    = getValue(flat, ['document_number','номер_документа','номер_счета','номер']);
+        // Сумма: total_with_vat раньше чем просто total, иначе subtotal матчится первым
+        const docSum    = getValue(flat, [
+            'total_with_vat','amounts total_with_vat','итого_с_ндс','сумма_с_ндс',
+            'total_amount','amount','итого','сумма_документа',
+        ]);
+        // Договор: сначала basis_document, потом contract_*
+        const basisType   = getValue(flat, ['basis_document type','basis document type']);
+        const basisNumber = getValue(flat, ['basis_document number','basis document number','contract_number','номер_договора','договор_номер']);
+        const basisDate   = getValue(flat, ['basis_document date','basis document date']);
+        const contractTitle = getValue(flat, ['contract_title','договор','основание']);
+        const contract = contractTitle
+            || [basisType, basisNumber, basisDate ? `от ${basisDate}` : ''].filter(Boolean).join(' ');
+        const docDate   = getValue(flat, ['document_date','дата_документа','дата']);
+        // vat_rate often lives only inside items[0]
+        const vatRate   = getValue(flat, ['vat_rate','ставка_ндс','ндс_ставка'])
             || (table.length > 0 ? getValue(flattenObj(table[0]), ['vat_rate','ставка_ндс','ндс_ставка']) : '');
-        const contract = getValue(flat, ['contract_title','договор','основание']);
 
         const requisitesText = [
-            `Контрагент: ${contrINN || '-'}`,
+            `Контрагент: ${contrName || contrINN || '-'}`,
+            `ИНН продавца: ${contrINN || '-'}`,
             `Номер документа: ${docNum || '-'}`,
-            `Сумма документа: ${docSum || '-'}`,
-            `Номер договора: ${contrNum || '-'}`,
+            `Сумма с НДС: ${docSum || '-'}`,
+            `Номер договора: ${contract || '-'}`,
         ].join('\n');
 
         const tableText = table.length > 0 ? table.map(item => {
@@ -272,7 +284,7 @@ const ResultViewer = () => {
             { label: 'Реквизиты контрагента', value: requisitesText, id: `cd-req-${idx}`, multi: true },
             { label: 'Дата документа', value: docDate || '-', id: `cd-date-${idx}` },
             { label: 'Ставка НДС', value: vatRate || '-', id: `cd-vat-${idx}` },
-            { label: 'Договор', value: contract || '-', id: `cd-contr-${idx}` },
+            { label: 'Договор / Основание', value: contract || '-', id: `cd-contr-${idx}` },
             { label: 'Вид документа', value: doc.document_type || '-', id: `cd-type-${idx}` },
             { label: 'Таблица товаров / услуг', value: tableText, id: `cd-table-${idx}`, multi: true },
         ];
@@ -433,7 +445,10 @@ const ResultViewer = () => {
                     </button>
                     {result?.module === 'closing-docs' && result?.documents?.length > 0 && (
                         <button
-                            onClick={() => exportClosingDocsToExcel(result.documents)}
+                            onClick={() => {
+                                const jobNames = (() => { try { return JSON.parse(localStorage.getItem('ocr_job_names') || '{}'); } catch { return {}; } })();
+                                exportClosingDocsToExcel([{ jobId, filename: jobNames[jobId] || jobId, documents: result.documents }]);
+                            }}
                             className="flex items-center gap-2 px-3 py-2 bg-emerald-50 text-emerald-700 text-sm font-semibold rounded-lg hover:bg-emerald-100 transition-colors border border-emerald-200 shadow-sm"
                         >
                             <Download className="w-4 h-4" /> Excel
