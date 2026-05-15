@@ -513,7 +513,7 @@ def update_system_settings(body: dict, db: Session = Depends(get_db), admin: Use
 
 @router.get("/admin/report/daily")
 def download_daily_report(db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
-    """Скачать ежедневный Excel-отчёт за вчера (или триггернуть вручную)."""
+    """Скачать ежедневный Excel-отчёт за вчера."""
     from app.services.report_service import build_daily_report
     from datetime import timezone, timedelta
     report_date = datetime.now(timezone.utc) - timedelta(days=1)
@@ -528,10 +528,28 @@ def download_daily_report(db: Session = Depends(get_db), admin: User = Depends(g
 
 @router.post("/admin/report/send")
 def send_daily_report_now(admin: User = Depends(get_current_admin_user)):
-    """Немедленно отправить ежедневный отчёт на email (тест)."""
+    """Немедленно отправить ежедневный отчёт на email."""
     from app.services.report_service import send_daily_report
     send_daily_report()
-    return {"status": "ok", "message": "Отчёт отправлен (или ошибка в логах, если SMTP не настроен)"}
+    return {"status": "ok", "message": "Отчёт отправлен (проверьте логи если SMTP не настроен)"}
+
+
+@router.get("/admin/report/recipients")
+def get_report_recipients(db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
+    """Получить список получателей ежедневного отчёта."""
+    from app.services.settings_service import get_setting
+    raw = get_setting(db, "report_recipients")
+    emails = [e.strip() for e in raw.split(",") if e.strip()] if raw else []
+    return {"recipients": emails}
+
+
+@router.put("/admin/report/recipients")
+def set_report_recipients(body: dict, db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
+    """Сохранить список получателей (передать {recipients: ['a@b.com', ...]})."""
+    from app.services.settings_service import set_setting
+    emails = [e.strip() for e in body.get("recipients", []) if e.strip()]
+    set_setting(db, "report_recipients", ",".join(emails))
+    return {"status": "ok", "recipients": emails}
 
 
 # --- Management API ---

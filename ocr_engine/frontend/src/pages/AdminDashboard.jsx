@@ -6,7 +6,7 @@ import {
     Users, UserPlus, CheckCircle, AlertCircle, RefreshCw,
     FileText, List, Activity, Cpu, Trash2, Play, Plus, X,
     ChevronDown, ChevronRight, ChevronLeft, Settings, Check, Copy,
-    PieChart, ThumbsUp, ThumbsDown, MessageSquare
+    PieChart, ThumbsUp, ThumbsDown, MessageSquare, Mail, Download, Send
 } from 'lucide-react';
 
 // ─── Sidebar nav config ───────────────────────────────────────────────────────
@@ -18,6 +18,7 @@ const NAV = [
     { id: 'contracts',label: 'Контракты',        icon: List },
     { id: 'models',   label: 'Модели ИИ',        icon: Cpu },
     { id: 'apikeys',  label: 'API Ключи',        icon: Settings },
+    { id: 'reports',  label: 'Отчёты',           icon: Mail },
 ];
 
 // ─── Reusable atoms ───────────────────────────────────────────────────────────
@@ -1195,6 +1196,144 @@ const AnalyticsSection = () => {
     );
 };
 
+// ─── Section: Reports ────────────────────────────────────────────────────────
+const ReportsSection = () => {
+    const [recipients, setRecipients] = useState([]);
+    const [newEmail, setNewEmail] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [sending, setSending] = useState(false);
+    const [downloading, setDownloading] = useState(false);
+
+    const load = async () => {
+        setLoading(true);
+        try {
+            const { data } = await api.get('/admin/report/recipients');
+            setRecipients(data.recipients || []);
+        } catch { toast.error('Ошибка загрузки получателей'); }
+        finally { setLoading(false); }
+    };
+    useEffect(() => { load(); }, []);
+
+    const addEmail = async () => {
+        const email = newEmail.trim();
+        if (!email || recipients.includes(email)) return;
+        const updated = [...recipients, email];
+        try {
+            await api.put('/admin/report/recipients', { recipients: updated });
+            setRecipients(updated);
+            setNewEmail('');
+            toast.success(`${email} добавлен в рассылку`);
+        } catch { toast.error('Ошибка сохранения'); }
+    };
+
+    const removeEmail = async (email) => {
+        const updated = recipients.filter(e => e !== email);
+        try {
+            await api.put('/admin/report/recipients', { recipients: updated });
+            setRecipients(updated);
+            toast.success(`${email} удалён из рассылки`);
+        } catch { toast.error('Ошибка удаления'); }
+    };
+
+    const sendNow = async () => {
+        setSending(true);
+        try {
+            await api.post('/admin/report/send');
+            toast.success('Отчёт отправлен на почту!');
+        } catch { toast.error('Ошибка отправки'); }
+        finally { setSending(false); }
+    };
+
+    const downloadReport = async () => {
+        setDownloading(true);
+        try {
+            const resp = await api.get('/admin/report/daily', { responseType: 'blob' });
+            const url  = URL.createObjectURL(new Blob([resp.data]));
+            const a    = document.createElement('a');
+            const date = new Date();
+            date.setDate(date.getDate() - 1);
+            a.href = url;
+            a.download = `OCR_Report_${date.toISOString().slice(0,10)}.xlsx`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch { toast.error('Ошибка скачивания отчёта'); }
+        finally { setDownloading(false); }
+    };
+
+    return (
+        <div className="p-6 space-y-6 max-w-2xl">
+            {/* Header actions */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                <h3 className="text-base font-bold text-slate-800 mb-1">Ежедневный отчёт</h3>
+                <p className="text-xs text-slate-400 mb-4">
+                    Отправляется автоматически каждый день в <strong>00:00 МСК</strong>. Лист «Сводка» + лист «Детали» (все задания, оценки, комментарии).
+                </p>
+                <div className="flex gap-3 flex-wrap">
+                    <Btn variant="primary" onClick={sendNow} disabled={sending}>
+                        <Send className="w-4 h-4" />
+                        {sending ? 'Отправка...' : 'Отправить сейчас'}
+                    </Btn>
+                    <Btn variant="ghost" onClick={downloadReport} disabled={downloading}>
+                        <Download className="w-4 h-4" />
+                        {downloading ? 'Загрузка...' : 'Скачать отчёт за вчера'}
+                    </Btn>
+                </div>
+            </div>
+
+            {/* Recipients list */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                <h3 className="text-base font-bold text-slate-800 mb-1 flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-sky-500" />
+                    Список рассылки
+                </h3>
+                <p className="text-xs text-slate-400 mb-4">Кому будет отправляться ежедневный отчёт.</p>
+
+                {/* Add email */}
+                <div className="flex gap-2 mb-4">
+                    <input
+                        type="email"
+                        value={newEmail}
+                        onChange={e => setNewEmail(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && addEmail()}
+                        placeholder="email@company.ru"
+                        className="flex-1 p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none"
+                    />
+                    <Btn onClick={addEmail} disabled={!newEmail.trim()}>
+                        <Plus className="w-4 h-4" /> Добавить
+                    </Btn>
+                </div>
+
+                {loading ? (
+                    <div className="flex justify-center py-6"><RefreshCw className="w-5 h-5 animate-spin text-slate-400" /></div>
+                ) : recipients.length === 0 ? (
+                    <p className="text-sm text-slate-400 italic text-center py-4">Список получателей пуст. Добавьте email выше.</p>
+                ) : (
+                    <div className="space-y-2">
+                        {recipients.map(email => (
+                            <div key={email} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2.5 border border-slate-100">
+                                <div className="flex items-center gap-2">
+                                    <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                    <span className="text-sm text-slate-700 font-medium">{email}</span>
+                                </div>
+                                <button onClick={() => removeEmail(email)}
+                                    className="text-slate-300 hover:text-red-500 transition-colors p-1 rounded">
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* SMTP info */}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-700">
+                <p className="font-semibold mb-1">⚙️ SMTP настройки</p>
+                <p>Настраиваются через переменные окружения на сервере: <code className="bg-amber-100 px-1 rounded font-mono">SMTP_HOST</code>, <code className="bg-amber-100 px-1 rounded font-mono">SMTP_USER</code>, <code className="bg-amber-100 px-1 rounded font-mono">SMTP_PASSWORD</code>, <code className="bg-amber-100 px-1 rounded font-mono">SMTP_PORT</code>.</p>
+            </div>
+        </div>
+    );
+};
+
 // ─── Main AdminDashboard ──────────────────────────────────────────────────────
 const AdminDashboard = () => {
     const [active, setActive] = useState('analytics');
@@ -1208,6 +1347,7 @@ const AdminDashboard = () => {
             case 'contracts': return <ContractsSection />;
             case 'models':    return <ModelsSection />;
             case 'apikeys':   return <ApiKeysSection />;
+            case 'reports':   return <ReportsSection />;
             default:          return null;
         }
     };

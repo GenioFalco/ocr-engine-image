@@ -22,10 +22,10 @@ try:
     from app.services.report_service import send_daily_report
 
     _scheduler = BackgroundScheduler(timezone="UTC")
-    # Каждый день в 07:00 UTC (10:00 МСК)
-    _scheduler.add_job(send_daily_report, CronTrigger(hour=7, minute=0), id="daily_report")
+    # Каждый день в 21:00 UTC = 00:00 МСК (UTC+3)
+    _scheduler.add_job(send_daily_report, CronTrigger(hour=21, minute=0), id="daily_report")
     _scheduler.start()
-    logger.info("APScheduler запущен. Ежедневный отчёт в 07:00 UTC.")
+    logger.info("APScheduler запущен. Ежедневный отчёт в 21:00 UTC (00:00 МСК).")
 except Exception as _sch_err:
     logger.warning(f"APScheduler не удалось запустить: {_sch_err}")
     _scheduler = None

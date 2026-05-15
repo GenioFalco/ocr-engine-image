@@ -253,8 +253,8 @@ def build_daily_report(db: Session, report_date: datetime | None = None) -> byte
 
 def send_daily_report():
     """Точка входа для планировщика. Собирает отчёт и шлёт письмо."""
-    if not settings.REPORT_EMAIL_TO or not settings.SMTP_HOST:
-        logger.info("Ежедневный отчёт: REPORT_EMAIL_TO или SMTP_HOST не заданы — пропускаем.")
+    if not settings.SMTP_HOST:
+        logger.info("Ежедневный отчёт: SMTP_HOST не задан — пропускаем.")
         return
 
     db = SessionLocal()
@@ -263,7 +263,14 @@ def send_daily_report():
         xlsx_bytes  = build_daily_report(db, report_date)
         filename    = f"OCR_Report_{report_date.strftime('%Y-%m-%d')}.xlsx"
 
-        recipients = [r.strip() for r in settings.REPORT_EMAIL_TO.split(",") if r.strip()]
+        # Получатели: из БД (приоритет) или из env
+        db_recipients = get_setting(db, "report_recipients")
+        raw = db_recipients if db_recipients else settings.REPORT_EMAIL_TO
+        recipients = [r.strip() for r in raw.split(",") if r.strip()]
+
+        if not recipients:
+            logger.info("Ежедневный отчёт: список получателей пуст — пропускаем.")
+            return
 
         msg = MIMEMultipart()
         msg["From"]    = settings.SMTP_FROM or settings.SMTP_USER
