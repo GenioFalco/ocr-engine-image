@@ -6,7 +6,7 @@ import {
     Users, UserPlus, CheckCircle, AlertCircle, RefreshCw,
     FileText, List, Activity, Cpu, Trash2, Play, Plus, X,
     ChevronDown, ChevronRight, ChevronLeft, Settings, Check, Copy,
-    PieChart, Star
+    PieChart, ThumbsUp, ThumbsDown, MessageSquare
 } from 'lucide-react';
 
 // ─── Sidebar nav config ───────────────────────────────────────────────────────
@@ -337,13 +337,16 @@ const JobsSection = () => {
     const resetFilters = () => { setDraft(EMPTY_DRAFT); setApplied(EMPTY_DRAFT); load(1, EMPTY_DRAFT); };
     const goPage       = (p) => load(p, applied);
 
-    const starsRender = (r) => {
+    const ratingRender = (r) => {
         if (!r.rating) return <span className="text-slate-300 text-xs">—</span>;
+        if (r.rating >= 4) return (
+            <span className="flex items-center gap-1 text-emerald-600 text-xs font-semibold">
+                <ThumbsUp className="w-3.5 h-3.5" /> Хорошо
+            </span>
+        );
         return (
-            <span className="flex items-center gap-0.5">
-                {[1,2,3,4,5].map(s => (
-                    <Star key={s} className={`w-3 h-3 ${s <= r.rating ? 'text-amber-400 fill-amber-400' : 'text-slate-200 fill-slate-200'}`} />
-                ))}
+            <span className="flex items-center gap-1 text-red-500 text-xs font-semibold">
+                <ThumbsDown className="w-3.5 h-3.5" /> Плохо
             </span>
         );
     };
@@ -353,7 +356,7 @@ const JobsSection = () => {
         { key: 'username',  label: 'Юзер',     render: r => <span className="font-semibold text-slate-700 text-xs">{r.username}</span> },
         { key: 'module',    label: 'Модуль',   render: r => <span className="text-xs font-bold uppercase text-indigo-600">{r.module}</span> },
         { key: 'status',    label: 'Статус',   render: r => <Badge value={r.status} map={statusBadge} /> },
-        { key: 'rating',    label: 'Оценка',   render: starsRender },
+        { key: 'rating',    label: 'Оценка',   render: ratingRender },
         { key: 'created_at',label: 'Создано',  render: r => <span className="text-xs text-slate-400">{new Date(r.created_at).toLocaleString('ru-RU')}</span> },
         {
             key: 'error_message', label: 'Ошибка', render: r => r.error_message
@@ -1112,11 +1115,18 @@ const AnalyticsSection = () => {
                     {stats.failed_jobs > 0 && <div className="absolute right-4 top-4 text-xs font-bold text-red-500 bg-red-100 px-2 py-1 rounded">Внимание</div>}
                 </div>
                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                    <div className="text-slate-500 font-semibold mb-1 text-sm uppercase tracking-wide flex items-center gap-1.5">
-                        <Star className="w-4 h-4 text-amber-500" />
-                        Средняя оценка
+                    <div className="text-slate-500 font-semibold mb-1 text-sm uppercase tracking-wide">Качество</div>
+                    <div className="flex items-center gap-3 mt-2">
+                        <div className="flex items-center gap-1.5">
+                            <ThumbsUp className="w-5 h-5 text-emerald-500" />
+                            <span className="text-2xl font-black text-emerald-600">{stats.rating_distribution?.['5'] || 0}</span>
+                        </div>
+                        <div className="text-slate-200 font-light text-xl">/</div>
+                        <div className="flex items-center gap-1.5">
+                            <ThumbsDown className="w-5 h-5 text-red-400" />
+                            <span className="text-2xl font-black text-red-500">{stats.rating_distribution?.['1'] || 0}</span>
+                        </div>
                     </div>
-                    <div className="text-3xl font-black text-slate-800">{stats.overall_rating} <span className="text-sm font-semibold text-slate-400">/ 5.0</span></div>
                 </div>
             </div>
 
@@ -1137,7 +1147,7 @@ const AnalyticsSection = () => {
                                         <span className="text-sm font-semibold text-slate-700 capitalize">{m.name}</span>
                                         <div className="text-right">
                                             <span className="text-sm font-bold text-slate-900">{m.count}</span>
-                                            <span className="text-xs text-slate-500 ml-2">(⭐️ {m.avg_rating})</span>
+                                            {m.avg_rating > 0 && <span className="text-xs text-slate-400 ml-1">(avg {m.avg_rating})</span>}
                                         </div>
                                     </div>
                                     <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
@@ -1152,30 +1162,32 @@ const AnalyticsSection = () => {
                 {/* Оценки */}
                 <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                     <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                        <Star className="w-5 h-5 text-amber-500" />
-                        Распределение оценок
+                        <ThumbsUp className="w-5 h-5 text-emerald-500" />
+                        Оценки качества распознавания
                     </h3>
                     <div className="space-y-4">
-                        {[5, 4, 3, 2, 1].map(r => {
-                            const strR = String(r);
-                            const count = stats.rating_distribution[strR] || 0;
-                            // Check if rating_distribution is empty to avoid NaN
-                            const allCounts = Object.values(stats.rating_distribution);
-                            const maxCount = allCounts.length > 0 ? Math.max(...allCounts, 1) : 1;
-                            const pct = (count / maxCount) * 100;
+                        {[
+                            { label: '👍 Хорошо', key: '5', color: 'bg-emerald-500' },
+                            { label: '👎 Плохо',  key: '1', color: 'bg-red-500' },
+                        ].map(({ label, key, color }) => {
+                            const count = stats.rating_distribution[key] || 0;
+                            const total = (stats.rating_distribution['5'] || 0) + (stats.rating_distribution['1'] || 0);
+                            const pct = total > 0 ? (count / total) * 100 : 0;
                             return (
-                                <div key={r} className="flex items-center gap-3">
-                                    <div className="flex items-center gap-1 w-12 shrink-0">
-                                        <span className="font-bold text-slate-700">{r}</span>
-                                        <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                                <div key={key} className="flex items-center gap-3">
+                                    <div className="w-24 text-sm font-semibold text-slate-700 shrink-0">{label}</div>
+                                    <div className="flex-1 h-4 bg-slate-100 rounded-full overflow-hidden">
+                                        <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${pct}%` }} />
                                     </div>
-                                    <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
-                                        <div className={`h-full rounded-full transition-all duration-500 ${r >= 4 ? 'bg-emerald-500' : r === 3 ? 'bg-amber-400' : 'bg-red-500'}`} style={{ width: `${pct}%` }}></div>
+                                    <div className="w-16 text-right text-sm font-semibold text-slate-600">
+                                        {count} <span className="text-xs text-slate-400">({Math.round(pct)}%)</span>
                                     </div>
-                                    <div className="w-10 text-right text-sm font-semibold text-slate-600">{count}</div>
                                 </div>
                             );
                         })}
+                        <p className="text-xs text-slate-400 pt-1">
+                            Всего оценено: {(stats.rating_distribution['5'] || 0) + (stats.rating_distribution['1'] || 0)} документов
+                        </p>
                     </div>
                 </div>
             </div>

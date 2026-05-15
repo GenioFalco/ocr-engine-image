@@ -1,3 +1,6 @@
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 from app.api.routes import router as api_router
@@ -7,8 +10,25 @@ from app.db.base import engine, Base
 from app.config.settings import settings
 import app.models.models  # noqa: F401 — ensure all tables are registered with Base before create_all
 
+logger = logging.getLogger(__name__)
+
 # Create DB tables (In prod, use Alembic)
 Base.metadata.create_all(bind=engine)
+
+# ── APScheduler: ежедневный отчёт ────────────────────────────────────────────
+try:
+    from apscheduler.schedulers.background import BackgroundScheduler
+    from apscheduler.triggers.cron import CronTrigger
+    from app.services.report_service import send_daily_report
+
+    _scheduler = BackgroundScheduler(timezone="UTC")
+    # Каждый день в 07:00 UTC (10:00 МСК)
+    _scheduler.add_job(send_daily_report, CronTrigger(hour=7, minute=0), id="daily_report")
+    _scheduler.start()
+    logger.info("APScheduler запущен. Ежедневный отчёт в 07:00 UTC.")
+except Exception as _sch_err:
+    logger.warning(f"APScheduler не удалось запустить: {_sch_err}")
+    _scheduler = None
 
 app = FastAPI(
     title="OCR Engine API",

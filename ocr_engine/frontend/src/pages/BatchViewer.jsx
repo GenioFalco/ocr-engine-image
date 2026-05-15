@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api';
-import { ArrowLeft, Check, Copy, AlertCircle, RefreshCw, FileText, Building, List, Download, Star } from 'lucide-react';
+import { ArrowLeft, Check, Copy, AlertCircle, RefreshCw, FileText, Building, List, Download, ThumbsUp, ThumbsDown, MessageSquare, Send } from 'lucide-react';
 import { exportClosingDocsToExcel } from '../utils/excel';
 
 // ── Closing-docs helpers (same logic as ResultViewer / excel.js) ──────────────
@@ -287,16 +287,26 @@ const BatchViewer = () => {
     const [copiedKey, setCopiedKey] = useState(null);
 
     // ── Per-job ratings ───────────────────────────────────────────────────────
-    const [ratings, setRatings] = useState({});          // jobId → 1-5
-    const [hoverRating, setHoverRating] = useState({});  // jobId → 1-5
-    const [submittingRating, setSubmittingRating] = useState({}); // jobId → bool
+    const [ratings,   setRatings]   = useState({});   // jobId → 5|1
+    const [comments,  setComments]  = useState({});   // jobId → string
+    const [showCmt,   setShowCmt]   = useState({});   // jobId → bool
+    const [submittingRating, setSubmittingRating] = useState({});
 
     const handleRating = async (jobId, val) => {
         if (submittingRating[jobId]) return;
         setSubmittingRating(r => ({ ...r, [jobId]: true }));
         try {
-            await api.post('/feedback', { job_id: jobId, rating: val });
+            await api.post('/feedback', { job_id: jobId, rating: val, comment: comments[jobId] || '' });
             setRatings(r => ({ ...r, [jobId]: val }));
+        } catch { }
+        finally { setSubmittingRating(r => ({ ...r, [jobId]: false })); }
+    };
+
+    const handleSaveComment = async (jobId) => {
+        if (!ratings[jobId]) return;
+        setSubmittingRating(r => ({ ...r, [jobId]: true }));
+        try {
+            await api.post('/feedback', { job_id: jobId, rating: ratings[jobId], comment: comments[jobId] || '' });
         } catch { }
         finally { setSubmittingRating(r => ({ ...r, [jobId]: false })); }
     };
@@ -313,7 +323,8 @@ const BatchViewer = () => {
             const { data } = await api.get(`/result/${jobId}`);
             setResults(r => ({ ...r, [jobId]: data }));
             // Pre-fill existing rating if the job already has one
-            if (data.rating) setRatings(r => ({ ...r, [jobId]: data.rating }));
+            if (data.rating)  setRatings(r  => ({ ...r,  [jobId]: data.rating }));
+            if (data.comment) { setComments(c => ({ ...c, [jobId]: data.comment })); setShowCmt(s => ({ ...s, [jobId]: true })); }
         } catch { setErrors(e => ({ ...e, [jobId]: 'Ошибка загрузки' })); }
         finally { setLoading(l => ({ ...l, [jobId]: false })); }
     };
@@ -386,23 +397,17 @@ const BatchViewer = () => {
                                     {loading[id] && <div className="mt-1 text-[10px] text-blue-400">загрузка…</div>}
                                     {errors[id] && <div className="mt-1 text-[10px] text-red-400">ошибка</div>}
                                     {res && !loading[id] && !errors[id] && (
-                                        <div className="flex items-center gap-0.5 mt-1.5" onClick={e => e.stopPropagation()}>
-                                            {[1,2,3,4,5].map(val => (
-                                                <button
-                                                    key={val}
-                                                    disabled={submittingRating[id]}
-                                                    onClick={() => handleRating(id, val)}
-                                                    onMouseEnter={() => setHoverRating(h => ({ ...h, [id]: val }))}
-                                                    onMouseLeave={() => setHoverRating(h => ({ ...h, [id]: 0 }))}
-                                                    className="focus:outline-none transition-transform hover:scale-110 disabled:opacity-40"
-                                                >
-                                                    <Star className={`w-3 h-3 transition-colors ${
-                                                        (jobHover || jobRating) >= val
-                                                            ? 'fill-amber-400 text-amber-400'
-                                                            : isActive ? 'text-slate-500' : 'text-slate-300'
-                                                    }`} />
-                                                </button>
-                                            ))}
+                                        <div className="flex items-center gap-1 mt-1.5" onClick={e => e.stopPropagation()}>
+                                            <button disabled={submittingRating[id]} onClick={() => handleRating(id, 5)}
+                                                className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold border transition-all
+                                                    ${ratings[id] === 5 ? 'bg-emerald-500 text-white border-emerald-500' : 'text-emerald-600 border-emerald-200 bg-white hover:bg-emerald-50'}`}>
+                                                <ThumbsUp className="w-2.5 h-2.5" /> OK
+                                            </button>
+                                            <button disabled={submittingRating[id]} onClick={() => handleRating(id, 1)}
+                                                className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold border transition-all
+                                                    ${ratings[id] === 1 ? 'bg-red-500 text-white border-red-500' : 'text-red-500 border-red-200 bg-white hover:bg-red-50'}`}>
+                                                <ThumbsDown className="w-2.5 h-2.5" />
+                                            </button>
                                         </div>
                                     )}
                                 </button>
@@ -430,26 +435,37 @@ const BatchViewer = () => {
                 <div className="flex-1 flex flex-col min-h-0 bg-slate-50/40">
                 {/* Rating bar for current job */}
                 {currentId && currentResult && !isLoading && (
-                    <div className="px-5 py-2 bg-white border-b border-slate-100 flex items-center gap-2 shrink-0">
-                        <span className="text-xs text-slate-400 font-medium">Оценить результат:</span>
-                        {[1,2,3,4,5].map(val => (
-                            <button
-                                key={val}
-                                disabled={submittingRating[currentId]}
-                                onClick={() => handleRating(currentId, val)}
-                                onMouseEnter={() => setHoverRating(h => ({ ...h, [currentId]: val }))}
-                                onMouseLeave={() => setHoverRating(h => ({ ...h, [currentId]: 0 }))}
-                                className="focus:outline-none transition-transform hover:scale-110 disabled:opacity-40"
-                            >
-                                <Star className={`w-4 h-4 transition-colors ${
-                                    ((hoverRating[currentId] || 0) || (ratings[currentId] || 0)) >= val
-                                        ? 'fill-amber-400 text-amber-400'
-                                        : 'text-slate-300'
-                                }`} />
-                            </button>
-                        ))}
-                        {ratings[currentId] && (
-                            <span className="text-xs text-slate-400 ml-1">({ratings[currentId]}/5)</span>
+                    <div className="px-5 py-2 bg-white border-b border-slate-100 flex flex-wrap items-center gap-2 shrink-0">
+                        <span className="text-xs text-slate-400 font-medium">Оценить:</span>
+                        <button disabled={submittingRating[currentId]} onClick={() => handleRating(currentId, 5)}
+                            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all disabled:opacity-50
+                                ${ratings[currentId] === 5 ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-emerald-600 border-emerald-200 hover:bg-emerald-50'}`}>
+                            <ThumbsUp className="w-3.5 h-3.5" /> Хорошо
+                        </button>
+                        <button disabled={submittingRating[currentId]} onClick={() => handleRating(currentId, 1)}
+                            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all disabled:opacity-50
+                                ${ratings[currentId] === 1 ? 'bg-red-500 text-white border-red-500' : 'bg-white text-red-500 border-red-200 hover:bg-red-50'}`}>
+                            <ThumbsDown className="w-3.5 h-3.5" /> Плохо
+                        </button>
+                        <button onClick={() => setShowCmt(s => ({ ...s, [currentId]: !s[currentId] }))}
+                            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-all
+                                ${showCmt[currentId] ? 'bg-sky-100 text-sky-700 border-sky-200' : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'}`}>
+                            <MessageSquare className="w-3.5 h-3.5" /> Комментарий
+                        </button>
+                        {showCmt[currentId] && (
+                            <div className="flex items-start gap-2 w-full mt-1">
+                                <textarea
+                                    value={comments[currentId] || ''}
+                                    onChange={e => setComments(c => ({ ...c, [currentId]: e.target.value }))}
+                                    placeholder="Что не так или что понравилось..."
+                                    rows={2}
+                                    className="flex-1 text-xs p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-sky-400 outline-none resize-none bg-white"
+                                />
+                                <button onClick={() => handleSaveComment(currentId)} disabled={submittingRating[currentId]}
+                                    className="p-2 bg-sky-500 text-white rounded-lg hover:bg-sky-600 disabled:opacity-50 transition-colors mt-0.5">
+                                    <Send className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
                         )}
                     </div>
                 )}

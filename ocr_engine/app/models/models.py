@@ -69,9 +69,10 @@ class JobFeedback(Base):
     id = Column(Integer, primary_key=True, index=True)
     job_id = Column(UUID(as_uuid=True), ForeignKey("processing_jobs.id"), unique=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    rating = Column(Integer, default=5) # 1 to 5
+    rating = Column(Integer, default=5) # 5 = хорошо, 1 = плохо
+    comment = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     job = relationship("ProcessingJob")
     user = relationship("User")
 

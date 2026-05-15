@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api';
-import { ArrowLeft, Check, Copy, AlertCircle, RefreshCw, FileText, Building2, Building, Package, Truck, Calculator, List, Star, Download, AlignLeft } from 'lucide-react';
+import { ArrowLeft, Check, Copy, AlertCircle, RefreshCw, FileText, Building2, Building, Package, Truck, Calculator, List, ThumbsUp, ThumbsDown, Download, AlignLeft, MessageSquare, Send } from 'lucide-react';
 import { toast } from '../components/Toast';
 import { exportClosingDocsToExcel } from '../utils/excel';
 
@@ -67,8 +67,9 @@ const ResultViewer = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [copiedKey, setCopiedKey] = useState(null);
-    const [rating, setRating] = useState(null);
-    const [hoverRating, setHoverRating] = useState(0);
+    const [rating, setRating] = useState(null);   // 5=хорошо, 1=плохо, null=не оценено
+    const [comment, setComment] = useState('');
+    const [showComment, setShowComment] = useState(false);
     const [submittingRating, setSubmittingRating] = useState(false);
 
     const fetchResult = async () => {
@@ -77,6 +78,7 @@ const ResultViewer = () => {
             const { data } = await api.get(`/result/${jobId}`);
             setResult(data);
             if (data.rating) setRating(data.rating);
+            if (data.comment) { setComment(data.comment); setShowComment(true); }
         } catch (err) {
             setError('Не удалось загрузить результаты. Возможно, вы не имеете доступа к этому документу.');
         } finally {
@@ -99,11 +101,24 @@ const ResultViewer = () => {
         if (submittingRating) return;
         setSubmittingRating(true);
         try {
-            await api.post('/feedback', { job_id: jobId, rating: val });
+            await api.post('/feedback', { job_id: jobId, rating: val, comment });
             setRating(val);
-            toast.success('Спасибо за вашу оценку!');
-        } catch (err) {
+            toast.success(val >= 4 ? '👍 Спасибо! Отмечено как «Хорошо»' : '👎 Спасибо! Отмечено как «Плохо»');
+        } catch {
             toast.error('Ошибка сохранения оценки.');
+        } finally {
+            setSubmittingRating(false);
+        }
+    };
+
+    const handleSaveComment = async () => {
+        if (!rating) { toast.error('Сначала поставьте оценку.'); return; }
+        setSubmittingRating(true);
+        try {
+            await api.post('/feedback', { job_id: jobId, rating, comment });
+            toast.success('Комментарий сохранён.');
+        } catch {
+            toast.error('Ошибка сохранения комментария.');
         } finally {
             setSubmittingRating(false);
         }
@@ -463,26 +478,57 @@ const ResultViewer = () => {
                         </p>
                     </div>
                     {result?.status === 'done' && (
-                        <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
-                            <span className="text-xs font-semibold text-slate-500 mr-1">Оценить результат:</span>
-                            {[1, 2, 3, 4, 5].map(val => (
+                        <div className="flex flex-col gap-2 items-end">
+                            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
+                                <span className="text-xs font-semibold text-slate-500">Оценка:</span>
                                 <button
-                                    key={val}
                                     disabled={submittingRating}
-                                    onClick={() => handleRating(val)}
-                                    onMouseEnter={() => setHoverRating(val)}
-                                    onMouseLeave={() => setHoverRating(0)}
-                                    className="focus:outline-none transition-transform hover:scale-110 disabled:opacity-50"
+                                    onClick={() => handleRating(5)}
+                                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all disabled:opacity-50
+                                        ${rating === 5
+                                            ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
+                                            : 'bg-white text-emerald-600 border-emerald-200 hover:bg-emerald-50'}`}
                                 >
-                                    <Star 
-                                        className={`w-4 h-4 transition-colors ${
-                                            (hoverRating || rating) >= val 
-                                                ? 'fill-amber-400 text-amber-400' 
-                                                : 'text-slate-300'
-                                        }`} 
-                                    />
+                                    <ThumbsUp className="w-3.5 h-3.5" /> Хорошо
                                 </button>
-                            ))}
+                                <button
+                                    disabled={submittingRating}
+                                    onClick={() => handleRating(1)}
+                                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all disabled:opacity-50
+                                        ${rating === 1
+                                            ? 'bg-red-500 text-white border-red-500 shadow-sm'
+                                            : 'bg-white text-red-500 border-red-200 hover:bg-red-50'}`}
+                                >
+                                    <ThumbsDown className="w-3.5 h-3.5" /> Плохо
+                                </button>
+                                <button
+                                    onClick={() => setShowComment(c => !c)}
+                                    className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-all
+                                        ${showComment ? 'bg-sky-100 text-sky-700 border-sky-200' : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'}`}
+                                    title="Добавить комментарий"
+                                >
+                                    <MessageSquare className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                            {showComment && (
+                                <div className="flex items-start gap-2 w-72">
+                                    <textarea
+                                        value={comment}
+                                        onChange={e => setComment(e.target.value)}
+                                        placeholder="Комментарий (что не так или что понравилось)..."
+                                        rows={2}
+                                        className="flex-1 text-xs p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-sky-400 outline-none resize-none bg-white"
+                                    />
+                                    <button
+                                        onClick={handleSaveComment}
+                                        disabled={submittingRating}
+                                        className="p-2 bg-sky-500 text-white rounded-lg hover:bg-sky-600 disabled:opacity-50 transition-colors mt-0.5"
+                                        title="Сохранить комментарий"
+                                    >
+                                        <Send className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

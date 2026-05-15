@@ -37,6 +37,14 @@ class Settings(BaseSettings):
     # Максимум заданий на пользователя за сутки (0 = без лимита)
     MAX_JOBS_PER_USER_PER_DAY: int = 50
 
+    # ── Ежедневный email-отчёт ────────────────────────────────────────────────
+    REPORT_EMAIL_TO: str = ""           # кому слать (можно несколько через запятую)
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = ""                 # "OCR Engine <noreply@example.com>"
+    SMTP_USE_TLS: bool = True
 
     class Config:
         env_file = ".env"

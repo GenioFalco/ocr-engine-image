@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Form, BackgroundTasks, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, Form, BackgroundTasks, HTTPException, Depends, Response
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.db.base import get_db, SessionLocal
@@ -16,7 +16,8 @@ from sqlalchemy import func
 
 class FeedbackCreate(BaseModel):
     job_id: uuid.UUID
-    rating: int
+    rating: int          # 5 = хорошо, 1 = плохо
+    comment: str = ""
 
 router = APIRouter()
 
@@ -129,8 +130,9 @@ async def get_result(job_id: uuid.UUID, db: Session = Depends(get_db), current_u
         # Fetch feedback logic
         feedback = db.query(JobFeedback).filter(JobFeedback.job_id == job_id).first()
         rating = feedback.rating if feedback else None
-            
-        return {"status": job.status, "module": job.module, "documents": results, "rating": rating}
+        comment = feedback.comment if feedback else None
+
+        return {"status": job.status, "module": job.module, "documents": results, "rating": rating, "comment": comment}
 
     return {"status": job.status, "module": job.module, "error": job.error_message}
 
@@ -317,8 +319,9 @@ def submit_feedback(data: FeedbackCreate, db: Session = Depends(get_db), current
     feedback = db.query(JobFeedback).filter(JobFeedback.job_id == data.job_id).first()
     if feedback:
         feedback.rating = data.rating
+        feedback.comment = data.comment or feedback.comment
     else:
-        feedback = JobFeedback(job_id=data.job_id, user_id=current_user.id, rating=data.rating)
+        feedback = JobFeedback(job_id=data.job_id, user_id=current_user.id, rating=data.rating, comment=data.comment or None)
         db.add(feedback)
     db.commit()
     return {"status": "success"}
@@ -506,6 +509,30 @@ def update_system_settings(body: dict, db: Session = Depends(get_db), admin: Use
         set_setting(db, key, str(value))
         updated[key] = str(value)
     return {"status": "ok", "updated": updated}
+
+
+@router.get("/admin/report/daily")
+def download_daily_report(db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
+    """Скачать ежедневный Excel-отчёт за вчера (или триггернуть вручную)."""
+    from app.services.report_service import build_daily_report
+    from datetime import timezone, timedelta
+    report_date = datetime.now(timezone.utc) - timedelta(days=1)
+    xlsx_bytes  = build_daily_report(db, report_date)
+    filename    = f"OCR_Report_{report_date.strftime('%Y-%m-%d')}.xlsx"
+    return Response(
+        content=xlsx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/admin/report/send")
+def send_daily_report_now(admin: User = Depends(get_current_admin_user)):
+    """Немедленно отправить ежедневный отчёт на email (тест)."""
+    from app.services.report_service import send_daily_report
+    send_daily_report()
+    return {"status": "ok", "message": "Отчёт отправлен (или ошибка в логах, если SMTP не настроен)"}
+
 
 # --- Management API ---
 from app.schemas.admin import DocumentTypeCreate, ContractCreate, ModelCreate
