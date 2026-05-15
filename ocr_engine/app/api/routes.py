@@ -358,6 +358,23 @@ def get_quota(db: Session = Depends(get_db), admin: User = Depends(get_current_a
     model_name = active_model.model_name if active_model else "unknown"
     provider = active_model.provider if active_model else "unknown"
 
+    def _parse_token_log(msg: str):
+        """Разбирает запись TOKENS_USED — новый формат JSON или старый int."""
+        if not msg:
+            return 0, 0, 0
+        import json as _json
+        try:
+            d = _json.loads(msg)
+            if isinstance(d, dict):
+                return d.get("total", 0), d.get("input", 0), d.get("output", 0)
+        except Exception:
+            pass
+        try:
+            t = int(msg)
+            return t, 0, 0  # старый формат: total известен, input/output нет
+        except Exception:
+            return 0, 0, 0
+
     # За последние 7 дней по дням
     days_stats = []
     for i in range(6, -1, -1):
@@ -368,7 +385,7 @@ def get_quota(db: Session = Depends(get_db), admin: User = Depends(get_current_a
             Log.created_at >= day_start,
             Log.created_at < day_end
         ).all()
-        total = sum(int(r.message) for r in rows if r.message.isdigit())
+        total = sum(_parse_token_log(r.message)[0] for r in rows)
         days_stats.append({
             "date": day_start.strftime("%d.%m"),
             "tokens": total,
@@ -377,7 +394,14 @@ def get_quota(db: Session = Depends(get_db), admin: User = Depends(get_current_a
 
     # Всего за всё время
     all_rows = db.query(Log.message).filter(Log.stage == "TOKENS_USED").all()
-    total_all_time = sum(int(r.message) for r in all_rows if r.message.isdigit())
+    total_all_time = 0
+    total_input_all = 0
+    total_output_all = 0
+    for r in all_rows:
+        t, inp, out = _parse_token_log(r.message)
+        total_all_time += t
+        total_input_all += inp
+        total_output_all += out
 
     # Тест подключения к LLM
     llm_status = "unknown"
@@ -395,12 +419,41 @@ def get_quota(db: Session = Depends(get_db), admin: User = Depends(get_current_a
 
     today_total = days_stats[-1]["tokens"] if days_stats else 0
 
-    from app.services.settings_service import get_int_setting
-    daily_limit   = get_int_setting(db, "daily_token_limit")
-    max_pages     = get_int_setting(db, "max_pages_per_job")
-    max_jobs      = get_int_setting(db, "max_jobs_per_user_per_day")
-    daily_remaining = max(0, daily_limit - today_total) if daily_limit > 0 else None
-    daily_pct = min(100, round(today_total / daily_limit * 100, 1)) if daily_limit > 0 else 0
+    from app.services.settings_service import get_int_setting, get_setting
+    daily_limit        = get_int_setting(db, "daily_token_limit")
+    max_pages          = get_int_setting(db, "max_pages_per_job")
+    max_jobs           = get_int_setting(db, "max_jobs_per_user_per_day")
+    daily_cost_limit   = float(get_setting(db, "daily_cost_limit_usd") or 0)
+    price_input_1m     = float(get_setting(db, "price_input_per_1m") or 0.21)
+    price_output_1m    = float(get_setting(db, "price_output_per_1m") or 0.63)
+
+    # Стоимость (если input/output не разбиты — считаем по blended rate)
+    def calc_cost(inp, out, total):
+        if inp or out:
+            return round((inp * price_input_1m + out * price_output_1m) / 1_000_000, 6)
+        # Старые записи: только total, используем blended ~75% input / 25% output
+        blended = (0.75 * price_input_1m + 0.25 * price_output_1m)
+        return round(total * blended / 1_000_000, 6)
+
+    cost_all_time = calc_cost(total_input_all, total_output_all, total_all_time)
+
+    # Считаем сегодняшние затраты отдельно
+    from datetime import timedelta
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_rows = db.query(Log.message).filter(
+        Log.stage == "TOKENS_USED",
+        Log.created_at >= today_start,
+    ).all()
+    today_inp = today_out = today_t = 0
+    for r in today_rows:
+        t, inp, out = _parse_token_log(r.message)
+        today_t += t; today_inp += inp; today_out += out
+    cost_today = calc_cost(today_inp, today_out, today_t)
+
+    daily_remaining     = max(0, daily_limit - today_total) if daily_limit > 0 else None
+    daily_pct           = min(100, round(today_total / daily_limit * 100, 1)) if daily_limit > 0 else 0
+    daily_cost_pct      = min(100, round(cost_today / daily_cost_limit * 100, 1)) if daily_cost_limit > 0 else 0
+    daily_cost_remaining = max(0.0, round(daily_cost_limit - cost_today, 4)) if daily_cost_limit > 0 else None
 
     return {
         "model": model_name,
@@ -408,12 +461,18 @@ def get_quota(db: Session = Depends(get_db), admin: User = Depends(get_current_a
         "llm_status": llm_status,
         "today": {
             "tokens": today_total,
-            "requests": days_stats[-1]["requests"] if days_stats else 0
+            "requests": days_stats[-1]["requests"] if days_stats else 0,
+            "cost_usd": cost_today,
         },
         "total_all_time": total_all_time,
+        "cost_all_time_usd": cost_all_time,
         "days": days_stats,
         "free_tier_limit": 1_000_000,
         "free_tier_remaining": max(0, 1_000_000 - total_all_time),
+        "pricing": {
+            "input_per_1m": price_input_1m,
+            "output_per_1m": price_output_1m,
+        },
         "limits": {
             "daily_token_limit": daily_limit,
             "daily_token_used": today_total,
@@ -421,6 +480,10 @@ def get_quota(db: Session = Depends(get_db), admin: User = Depends(get_current_a
             "daily_token_pct": daily_pct,
             "max_pages_per_job": max_pages,
             "max_jobs_per_user_per_day": max_jobs,
+            "daily_cost_limit_usd": daily_cost_limit,
+            "daily_cost_used_usd": cost_today,
+            "daily_cost_remaining_usd": daily_cost_remaining,
+            "daily_cost_pct": daily_cost_pct,
         }
     }
 

@@ -92,9 +92,13 @@ class OCREngine:
         day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         day_end = day_start + timedelta(days=1)
 
-        max_pages       = get_int_setting(self.db, "max_pages_per_job")
-        daily_token_lim = get_int_setting(self.db, "daily_token_limit")
-        max_jobs        = get_int_setting(self.db, "max_jobs_per_user_per_day")
+        from app.services.settings_service import get_setting
+        max_pages        = get_int_setting(self.db, "max_pages_per_job")
+        daily_token_lim  = get_int_setting(self.db, "daily_token_limit")
+        max_jobs         = get_int_setting(self.db, "max_jobs_per_user_per_day")
+        daily_cost_limit = float(get_setting(self.db, "daily_cost_limit_usd") or 0)
+        price_input_1m   = float(get_setting(self.db, "price_input_per_1m") or 0.21)
+        price_output_1m  = float(get_setting(self.db, "price_output_per_1m") or 0.63)
 
         # 1. Лимит страниц на документ
         if max_pages > 0 and pdf_path:
@@ -139,6 +143,43 @@ class OCREngine:
                 raise ValueError(
                     f"Превышен дневной лимит заданий: {jobs_today} из {max_jobs}. "
                     f"Лимит обновится в 00:00 UTC."
+                )
+
+        # 4. Дневной лимит по деньгам (USD)
+        if daily_cost_limit > 0:
+            rows = self.db.query(Log.message).filter(
+                Log.stage == "TOKENS_USED",
+                Log.created_at >= day_start,
+                Log.created_at < day_end
+            ).all()
+            cost_today = 0.0
+            for r in rows:
+                if not r.message:
+                    continue
+                try:
+                    d = json.loads(r.message)
+                    if isinstance(d, dict):
+                        inp = d.get("input", 0)
+                        out = d.get("output", 0)
+                        tot = d.get("total", 0)
+                        if inp or out:
+                            cost_today += (inp * price_input_1m + out * price_output_1m) / 1_000_000
+                        else:
+                            blended = (0.75 * price_input_1m + 0.25 * price_output_1m)
+                            cost_today += tot * blended / 1_000_000
+                        continue
+                except Exception:
+                    pass
+                try:
+                    tot = int(r.message)
+                    blended = (0.75 * price_input_1m + 0.25 * price_output_1m)
+                    cost_today += tot * blended / 1_000_000
+                except Exception:
+                    pass
+            if cost_today >= daily_cost_limit:
+                raise ValueError(
+                    f"Дневной денежный лимит исчерпан: потрачено ${cost_today:.4f} из ${daily_cost_limit:.2f}. "
+                    f"Лимит обновится в 00:00 UTC. Обратитесь к администратору."
                 )
 
     def log(self, stage: str, message: str):
@@ -493,7 +534,11 @@ class OCREngine:
                 extraction_result = self.llm_provider.extract_document(group_images_data, json_schema)
                 self.detail_log("EXTRACTION_RESULT", f"Doc {doc_type_name} Raw LLM Response:\n{extraction_result.raw_response}")
                 if extraction_result.tokens_used:
-                    self.log("TOKENS_USED", str(extraction_result.tokens_used))
+                    self.log("TOKENS_USED", json.dumps({
+                        "total": extraction_result.tokens_used,
+                        "input": extraction_result.input_tokens,
+                        "output": extraction_result.output_tokens,
+                    }))
 
                 # Post-process: validate INN/KPP digit counts
                 extraction_result.fields = self._validate_inn_kpp(extraction_result.fields)

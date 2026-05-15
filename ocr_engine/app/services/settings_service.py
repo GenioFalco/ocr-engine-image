@@ -20,6 +20,20 @@ DEFAULTS = {
         "value": str(env_settings.MAX_JOBS_PER_USER_PER_DAY),
         "description": "Максимум заданий на пользователя в сутки. 0 = без лимита.",
     },
+    # Стоимость модели ($/1M токенов)
+    "price_input_per_1m": {
+        "value": "0.21",
+        "description": "Цена за 1М input-токенов (USD). Для qwen-vl-plus = 0.21",
+    },
+    "price_output_per_1m": {
+        "value": "0.63",
+        "description": "Цена за 1М output-токенов (USD). Для qwen-vl-plus = 0.63",
+    },
+    # Лимит по деньгам в день (0 = без лимита)
+    "daily_cost_limit_usd": {
+        "value": "0",
+        "description": "Максимальные траты в сутки (USD). 0 = без лимита.",
+    },
 }
 
 

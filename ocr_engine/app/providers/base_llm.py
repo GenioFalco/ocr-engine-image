@@ -12,7 +12,9 @@ class ExtractionResult(BaseModel):
     stamps: List[Dict[str, Any]]
     signatures: List[Dict[str, Any]]
     raw_response: str
-    tokens_used: int = 0  # total tokens consumed by this LLM call
+    tokens_used: int = 0    # total tokens
+    input_tokens: int = 0   # prompt/input tokens
+    output_tokens: int = 0  # completion/output tokens
 
 class BaseLLM(ABC):
     @abstractmethod

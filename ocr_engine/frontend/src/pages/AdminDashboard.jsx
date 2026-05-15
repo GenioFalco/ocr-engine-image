@@ -637,7 +637,10 @@ const QuotaWidget = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [editLimits, setEditLimits] = useState(false);
-    const [limitsForm, setLimitsForm] = useState({ daily_token_limit: '', max_pages_per_job: '', max_jobs_per_user_per_day: '' });
+    const [limitsForm, setLimitsForm] = useState({
+        daily_token_limit: '', max_pages_per_job: '', max_jobs_per_user_per_day: '',
+        price_input_per_1m: '0.21', price_output_per_1m: '0.63', daily_cost_limit_usd: '0',
+    });
     const [saving, setSaving] = useState(false);
 
     const load = () => {
@@ -651,6 +654,9 @@ const QuotaWidget = () => {
                         daily_token_limit: String(data.limits.daily_token_limit),
                         max_pages_per_job: String(data.limits.max_pages_per_job),
                         max_jobs_per_user_per_day: String(data.limits.max_jobs_per_user_per_day),
+                        price_input_per_1m: String(data.pricing?.input_per_1m ?? '0.21'),
+                        price_output_per_1m: String(data.pricing?.output_per_1m ?? '0.63'),
+                        daily_cost_limit_usd: String(data.limits.daily_cost_limit_usd ?? '0'),
                     });
                 }
             })
@@ -664,6 +670,9 @@ const QuotaWidget = () => {
             daily_token_limit: parseInt(limitsForm.daily_token_limit) || 0,
             max_pages_per_job: parseInt(limitsForm.max_pages_per_job) || 0,
             max_jobs_per_user_per_day: parseInt(limitsForm.max_jobs_per_user_per_day) || 0,
+            price_input_per_1m: parseFloat(limitsForm.price_input_per_1m) || 0.21,
+            price_output_per_1m: parseFloat(limitsForm.price_output_per_1m) || 0.63,
+            daily_cost_limit_usd: parseFloat(limitsForm.daily_cost_limit_usd) || 0,
         }).then(() => { toast.success('Лимиты сохранены'); setEditLimits(false); load(); })
           .catch(() => toast.error('Ошибка сохранения'))
           .finally(() => setSaving(false));
@@ -697,6 +706,7 @@ const QuotaWidget = () => {
                 <div className="text-right">
                     <p className="text-xs text-slate-400">Сегодня</p>
                     <p className="text-lg font-bold text-slate-800">{quota.today.tokens.toLocaleString()} <span className="text-xs font-normal text-slate-400">токенов</span></p>
+                    <p className="text-xs font-semibold text-emerald-700">${(quota.today.cost_usd || 0).toFixed(4)} USD</p>
                     <p className="text-xs text-slate-400">{quota.today.requests} запросов</p>
                 </div>
             </div>
@@ -715,6 +725,15 @@ const QuotaWidget = () => {
                 </p>
             </div>
 
+            <div className="flex items-center justify-between px-1 py-2 bg-slate-50 rounded-lg mb-1 text-xs">
+                <span className="text-slate-500">💰 Потрачено сегодня:</span>
+                <span className="font-bold text-slate-800">${(quota.today.cost_usd || 0).toFixed(4)}</span>
+                <span className="text-slate-300 mx-1">|</span>
+                <span className="text-slate-500">Всего за всё время:</span>
+                <span className="font-bold text-slate-800">${(quota.cost_all_time_usd || 0).toFixed(4)}</span>
+                <span className="text-slate-400 ml-2 text-[10px]">in ${quota.pricing?.input_per_1m}/1M · out ${quota.pricing?.output_per_1m}/1M</span>
+            </div>
+
             {quota.limits && (
                 <div className="border-t border-slate-100 pt-3 mb-3">
                     <div className="flex items-center justify-between mb-2">
@@ -724,7 +743,7 @@ const QuotaWidget = () => {
                         </button>
                     </div>
                     {!editLimits ? (
-                        <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div className="grid grid-cols-2 gap-2 text-xs">
                             <div className="bg-slate-50 rounded-lg p-2">
                                 <p className="text-slate-400">Токенов в сутки</p>
                                 {quota.limits.daily_token_limit > 0 ? (
@@ -740,6 +759,20 @@ const QuotaWidget = () => {
                                 ) : <p className="font-bold text-slate-400">Без лимита</p>}
                             </div>
                             <div className="bg-slate-50 rounded-lg p-2">
+                                <p className="text-slate-400">Расходов в сутки (USD)</p>
+                                {quota.limits.daily_cost_limit_usd > 0 ? (
+                                    <>
+                                        <p className={`font-bold ${quota.limits.daily_cost_pct >= 90 ? 'text-red-600' : quota.limits.daily_cost_pct >= 70 ? 'text-amber-600' : 'text-slate-700'}`}>
+                                            ${(quota.limits.daily_cost_used_usd || 0).toFixed(4)} / ${quota.limits.daily_cost_limit_usd}
+                                        </p>
+                                        <div className="w-full h-1 bg-slate-200 rounded-full mt-1">
+                                            <div className={`h-1 rounded-full ${quota.limits.daily_cost_pct >= 90 ? 'bg-red-500' : quota.limits.daily_cost_pct >= 70 ? 'bg-amber-400' : 'bg-emerald-500'}`}
+                                                style={{ width: `${quota.limits.daily_cost_pct}%` }} />
+                                        </div>
+                                    </>
+                                ) : <p className="font-bold text-slate-400">Без лимита</p>}
+                            </div>
+                            <div className="bg-slate-50 rounded-lg p-2">
                                 <p className="text-slate-400">Макс. страниц / документ</p>
                                 <p className="font-bold text-slate-700">{quota.limits.max_pages_per_job > 0 ? quota.limits.max_pages_per_job : '∞'}</p>
                             </div>
@@ -749,20 +782,40 @@ const QuotaWidget = () => {
                             </div>
                         </div>
                     ) : (
-                        <div className="bg-slate-50 rounded-xl p-3 text-xs">
-                            <div className="grid grid-cols-3 gap-3 mb-3">
-                                {[
-                                    { key: 'daily_token_limit', label: 'Токенов в сутки', hint: '0 = без лимита' },
-                                    { key: 'max_pages_per_job', label: 'Макс. страниц / документ', hint: '0 = без лимита' },
-                                    { key: 'max_jobs_per_user_per_day', label: 'Заданий / польз. / день', hint: '0 = без лимита' },
-                                ].map(({ key, label, hint }) => (
-                                    <div key={key}>
-                                        <label className="block text-slate-500 mb-1">{label} <span className="text-slate-400">({hint})</span></label>
-                                        <input type="number" min="0" value={limitsForm[key]}
-                                            onChange={e => setLimitsForm(f => ({ ...f, [key]: e.target.value }))}
-                                            className="w-full p-1.5 border border-slate-200 rounded-lg bg-white text-slate-800 focus:ring-2 focus:ring-sky-400 outline-none" />
-                                    </div>
-                                ))}
+                        <div className="bg-slate-50 rounded-xl p-3 text-xs space-y-3">
+                            <div>
+                                <p className="text-slate-400 font-semibold uppercase tracking-wide text-[10px] mb-2">Лимиты использования</p>
+                                <div className="grid grid-cols-3 gap-3">
+                                    {[
+                                        { key: 'daily_token_limit', label: 'Токенов в сутки', hint: '0 = без лимита' },
+                                        { key: 'max_pages_per_job', label: 'Макс. страниц / документ', hint: '0 = без лимита' },
+                                        { key: 'max_jobs_per_user_per_day', label: 'Заданий / польз. / день', hint: '0 = без лимита' },
+                                    ].map(({ key, label, hint }) => (
+                                        <div key={key}>
+                                            <label className="block text-slate-500 mb-1">{label} <span className="text-slate-400">({hint})</span></label>
+                                            <input type="number" min="0" value={limitsForm[key]}
+                                                onChange={e => setLimitsForm(f => ({ ...f, [key]: e.target.value }))}
+                                                className="w-full p-1.5 border border-slate-200 rounded-lg bg-white text-slate-800 focus:ring-2 focus:ring-sky-400 outline-none" />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <p className="text-slate-400 font-semibold uppercase tracking-wide text-[10px] mb-2">Цены и лимит расходов</p>
+                                <div className="grid grid-cols-3 gap-3">
+                                    {[
+                                        { key: 'price_input_per_1m', label: 'Input $/1M токенов', hint: 'напр. 0.21', step: '0.001' },
+                                        { key: 'price_output_per_1m', label: 'Output $/1M токенов', hint: 'напр. 0.63', step: '0.001' },
+                                        { key: 'daily_cost_limit_usd', label: 'Лимит USD/сутки', hint: '0 = без лимита', step: '0.01' },
+                                    ].map(({ key, label, hint, step }) => (
+                                        <div key={key}>
+                                            <label className="block text-slate-500 mb-1">{label} <span className="text-slate-400">({hint})</span></label>
+                                            <input type="number" min="0" step={step} value={limitsForm[key]}
+                                                onChange={e => setLimitsForm(f => ({ ...f, [key]: e.target.value }))}
+                                                className="w-full p-1.5 border border-slate-200 rounded-lg bg-white text-slate-800 focus:ring-2 focus:ring-sky-400 outline-none" />
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                             <Btn variant="primary" size="sm" onClick={saveLimits} disabled={saving}>
                                 {saving ? 'Сохранение...' : 'Сохранить'}

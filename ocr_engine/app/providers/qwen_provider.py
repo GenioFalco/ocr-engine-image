@@ -262,8 +262,12 @@ class QwenProvider(BaseLLM):
                     signatures[signatures.index(s)] = {"value": s}
 
             tokens_used = 0
+            input_tokens = 0
+            output_tokens = 0
             try:
-                tokens_used = response.usage.total_tokens or 0
+                input_tokens  = response.usage.prompt_tokens or 0
+                output_tokens = response.usage.completion_tokens or 0
+                tokens_used   = response.usage.total_tokens or (input_tokens + output_tokens)
             except Exception:
                 pass
 
@@ -272,7 +276,9 @@ class QwenProvider(BaseLLM):
                 stamps=stamps,
                 signatures=signatures,
                 raw_response=raw_response,
-                tokens_used=tokens_used
+                tokens_used=tokens_used,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
             )
 
         except Exception as e:
