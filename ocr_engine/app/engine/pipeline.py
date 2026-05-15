@@ -86,53 +86,58 @@ class OCREngine:
     def _check_limits(self, pdf_path: str = None, user_id: int = None):
         """Проверяет лимиты перед запуском задания. Бросает ValueError если лимит превышен."""
         from datetime import timedelta
+        from app.services.settings_service import get_int_setting
 
         now = datetime.utcnow()
         day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         day_end = day_start + timedelta(days=1)
 
+        max_pages       = get_int_setting(self.db, "max_pages_per_job")
+        daily_token_lim = get_int_setting(self.db, "daily_token_limit")
+        max_jobs        = get_int_setting(self.db, "max_jobs_per_user_per_day")
+
         # 1. Лимит страниц на документ
-        if settings.MAX_PAGES_PER_JOB > 0 and pdf_path:
+        if max_pages > 0 and pdf_path:
             try:
                 import fitz
                 doc = fitz.open(pdf_path)
                 page_count = len(doc)
                 doc.close()
-                if page_count > settings.MAX_PAGES_PER_JOB:
+                if page_count > max_pages:
                     raise ValueError(
                         f"Документ содержит {page_count} страниц. "
-                        f"Максимально допустимо: {settings.MAX_PAGES_PER_JOB}. "
+                        f"Максимально допустимо: {max_pages}. "
                         f"Разбейте документ на части."
                     )
             except ValueError:
                 raise
             except Exception:
-                pass  # Если не удалось открыть PDF — пропускаем проверку
+                pass
 
         # 2. Дневной лимит токенов
-        if settings.DAILY_TOKEN_LIMIT > 0:
+        if daily_token_lim > 0:
             rows = self.db.query(Log.message).filter(
                 Log.stage == "TOKENS_USED",
                 Log.created_at >= day_start,
                 Log.created_at < day_end
             ).all()
             used_today = sum(int(r.message) for r in rows if r.message and r.message.isdigit())
-            if used_today >= settings.DAILY_TOKEN_LIMIT:
+            if used_today >= daily_token_lim:
                 raise ValueError(
-                    f"Дневной лимит токенов исчерпан: использовано {used_today:,} из {settings.DAILY_TOKEN_LIMIT:,}. "
+                    f"Дневной лимит токенов исчерпан: использовано {used_today:,} из {daily_token_lim:,}. "
                     f"Лимит обновится в 00:00 UTC. Обратитесь к администратору."
                 )
 
         # 3. Лимит заданий на пользователя в день
-        if settings.MAX_JOBS_PER_USER_PER_DAY > 0 and user_id:
+        if max_jobs > 0 and user_id:
             jobs_today = self.db.query(ProcessingJob).filter(
                 ProcessingJob.user_id == user_id,
                 ProcessingJob.created_at >= day_start,
                 ProcessingJob.created_at < day_end
             ).count()
-            if jobs_today >= settings.MAX_JOBS_PER_USER_PER_DAY:
+            if jobs_today >= max_jobs:
                 raise ValueError(
-                    f"Превышен дневной лимит заданий: {jobs_today} из {settings.MAX_JOBS_PER_USER_PER_DAY}. "
+                    f"Превышен дневной лимит заданий: {jobs_today} из {max_jobs}. "
                     f"Лимит обновится в 00:00 UTC."
                 )
 

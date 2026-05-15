@@ -636,14 +636,38 @@ const QuotaWidget = () => {
     const [quota, setQuota] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [editLimits, setEditLimits] = useState(false);
+    const [limitsForm, setLimitsForm] = useState({ daily_token_limit: '', max_pages_per_job: '', max_jobs_per_user_per_day: '' });
+    const [saving, setSaving] = useState(false);
 
     const load = () => {
         setLoading(true); setError(null);
         api.get('/admin/quota')
-            .then(({ data }) => { setQuota(data); setLoading(false); })
+            .then(({ data }) => {
+                setQuota(data);
+                setLoading(false);
+                if (data.limits) {
+                    setLimitsForm({
+                        daily_token_limit: String(data.limits.daily_token_limit),
+                        max_pages_per_job: String(data.limits.max_pages_per_job),
+                        max_jobs_per_user_per_day: String(data.limits.max_jobs_per_user_per_day),
+                    });
+                }
+            })
             .catch(err => { setError(err?.response?.data?.detail || err.message || 'Ошибка загрузки'); setLoading(false); });
     };
     useEffect(() => { load(); }, []);
+
+    const saveLimits = () => {
+        setSaving(true);
+        api.put('/admin/settings', {
+            daily_token_limit: parseInt(limitsForm.daily_token_limit) || 0,
+            max_pages_per_job: parseInt(limitsForm.max_pages_per_job) || 0,
+            max_jobs_per_user_per_day: parseInt(limitsForm.max_jobs_per_user_per_day) || 0,
+        }).then(() => { toast.success('Лимиты сохранены'); setEditLimits(false); load(); })
+          .catch(() => toast.error('Ошибка сохранения'))
+          .finally(() => setSaving(false));
+    };
 
     if (loading) return <div className="flex items-center gap-2 text-sm text-slate-400 py-2 mb-4"><RefreshCw className="w-4 h-4 animate-spin" /> Загрузка статистики токенов...</div>;
     if (error) return (
@@ -693,32 +717,58 @@ const QuotaWidget = () => {
 
             {quota.limits && (
                 <div className="border-t border-slate-100 pt-3 mb-3">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Активные лимиты</p>
-                    <div className="grid grid-cols-3 gap-2 text-xs">
-                        <div className="bg-slate-50 rounded-lg p-2">
-                            <p className="text-slate-400">Токенов в сутки</p>
-                            {quota.limits.daily_token_limit > 0 ? (
-                                <>
-                                    <p className={`font-bold ${quota.limits.daily_token_pct >= 90 ? 'text-red-600' : quota.limits.daily_token_pct >= 70 ? 'text-amber-600' : 'text-slate-700'}`}>
-                                        {quota.limits.daily_token_used.toLocaleString()} / {quota.limits.daily_token_limit.toLocaleString()}
-                                    </p>
-                                    <div className="w-full h-1 bg-slate-200 rounded-full mt-1">
-                                        <div className={`h-1 rounded-full ${quota.limits.daily_token_pct >= 90 ? 'bg-red-500' : quota.limits.daily_token_pct >= 70 ? 'bg-amber-400' : 'bg-emerald-500'}`}
-                                            style={{ width: `${quota.limits.daily_token_pct}%` }} />
-                                    </div>
-                                </>
-                            ) : <p className="font-bold text-slate-400">Без лимита</p>}
-                        </div>
-                        <div className="bg-slate-50 rounded-lg p-2">
-                            <p className="text-slate-400">Макс. страниц в документе</p>
-                            <p className="font-bold text-slate-700">{quota.limits.max_pages_per_job > 0 ? quota.limits.max_pages_per_job : '∞'}</p>
-                        </div>
-                        <div className="bg-slate-50 rounded-lg p-2">
-                            <p className="text-slate-400">Заданий / пользователь / день</p>
-                            <p className="font-bold text-slate-700">{quota.limits.max_jobs_per_user_per_day > 0 ? quota.limits.max_jobs_per_user_per_day : '∞'}</p>
-                        </div>
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Активные лимиты</p>
+                        <button onClick={() => setEditLimits(e => !e)} className="text-xs text-sky-500 hover:text-sky-700 font-medium">
+                            {editLimits ? 'Отмена' : '✏ Изменить'}
+                        </button>
                     </div>
-                    <p className="text-[10px] text-slate-400 mt-1">Изменить: переменные DAILY_TOKEN_LIMIT, MAX_PAGES_PER_JOB, MAX_JOBS_PER_USER_PER_DAY в docker-compose.yml</p>
+                    {!editLimits ? (
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                            <div className="bg-slate-50 rounded-lg p-2">
+                                <p className="text-slate-400">Токенов в сутки</p>
+                                {quota.limits.daily_token_limit > 0 ? (
+                                    <>
+                                        <p className={`font-bold ${quota.limits.daily_token_pct >= 90 ? 'text-red-600' : quota.limits.daily_token_pct >= 70 ? 'text-amber-600' : 'text-slate-700'}`}>
+                                            {quota.limits.daily_token_used.toLocaleString()} / {quota.limits.daily_token_limit.toLocaleString()}
+                                        </p>
+                                        <div className="w-full h-1 bg-slate-200 rounded-full mt-1">
+                                            <div className={`h-1 rounded-full ${quota.limits.daily_token_pct >= 90 ? 'bg-red-500' : quota.limits.daily_token_pct >= 70 ? 'bg-amber-400' : 'bg-emerald-500'}`}
+                                                style={{ width: `${quota.limits.daily_token_pct}%` }} />
+                                        </div>
+                                    </>
+                                ) : <p className="font-bold text-slate-400">Без лимита</p>}
+                            </div>
+                            <div className="bg-slate-50 rounded-lg p-2">
+                                <p className="text-slate-400">Макс. страниц / документ</p>
+                                <p className="font-bold text-slate-700">{quota.limits.max_pages_per_job > 0 ? quota.limits.max_pages_per_job : '∞'}</p>
+                            </div>
+                            <div className="bg-slate-50 rounded-lg p-2">
+                                <p className="text-slate-400">Заданий / польз. / день</p>
+                                <p className="font-bold text-slate-700">{quota.limits.max_jobs_per_user_per_day > 0 ? quota.limits.max_jobs_per_user_per_day : '∞'}</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="bg-slate-50 rounded-xl p-3 text-xs">
+                            <div className="grid grid-cols-3 gap-3 mb-3">
+                                {[
+                                    { key: 'daily_token_limit', label: 'Токенов в сутки', hint: '0 = без лимита' },
+                                    { key: 'max_pages_per_job', label: 'Макс. страниц / документ', hint: '0 = без лимита' },
+                                    { key: 'max_jobs_per_user_per_day', label: 'Заданий / польз. / день', hint: '0 = без лимита' },
+                                ].map(({ key, label, hint }) => (
+                                    <div key={key}>
+                                        <label className="block text-slate-500 mb-1">{label} <span className="text-slate-400">({hint})</span></label>
+                                        <input type="number" min="0" value={limitsForm[key]}
+                                            onChange={e => setLimitsForm(f => ({ ...f, [key]: e.target.value }))}
+                                            className="w-full p-1.5 border border-slate-200 rounded-lg bg-white text-slate-800 focus:ring-2 focus:ring-sky-400 outline-none" />
+                                    </div>
+                                ))}
+                            </div>
+                            <Btn variant="primary" size="sm" onClick={saveLimits} disabled={saving}>
+                                {saving ? 'Сохранение...' : 'Сохранить'}
+                            </Btn>
+                        </div>
+                    )}
                 </div>
             )}
 

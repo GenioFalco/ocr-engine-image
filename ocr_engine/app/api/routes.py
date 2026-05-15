@@ -395,7 +395,10 @@ def get_quota(db: Session = Depends(get_db), admin: User = Depends(get_current_a
 
     today_total = days_stats[-1]["tokens"] if days_stats else 0
 
-    daily_limit = settings.DAILY_TOKEN_LIMIT
+    from app.services.settings_service import get_int_setting
+    daily_limit   = get_int_setting(db, "daily_token_limit")
+    max_pages     = get_int_setting(db, "max_pages_per_job")
+    max_jobs      = get_int_setting(db, "max_jobs_per_user_per_day")
     daily_remaining = max(0, daily_limit - today_total) if daily_limit > 0 else None
     daily_pct = min(100, round(today_total / daily_limit * 100, 1)) if daily_limit > 0 else 0
 
@@ -416,10 +419,30 @@ def get_quota(db: Session = Depends(get_db), admin: User = Depends(get_current_a
             "daily_token_used": today_total,
             "daily_token_remaining": daily_remaining,
             "daily_token_pct": daily_pct,
-            "max_pages_per_job": settings.MAX_PAGES_PER_JOB,
-            "max_jobs_per_user_per_day": settings.MAX_JOBS_PER_USER_PER_DAY,
+            "max_pages_per_job": max_pages,
+            "max_jobs_per_user_per_day": max_jobs,
         }
     }
+
+
+@router.get("/admin/settings")
+def get_system_settings(db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
+    """Получить все системные настройки."""
+    from app.services.settings_service import get_all_settings
+    return get_all_settings(db)
+
+
+@router.put("/admin/settings")
+def update_system_settings(body: dict, db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
+    """Обновить системные настройки. Передать dict {key: value}."""
+    from app.services.settings_service import set_setting, DEFAULTS
+    updated = {}
+    for key, value in body.items():
+        if key not in DEFAULTS:
+            continue
+        set_setting(db, key, str(value))
+        updated[key] = str(value)
+    return {"status": "ok", "updated": updated}
 
 # --- Management API ---
 from app.schemas.admin import DocumentTypeCreate, ContractCreate, ModelCreate
