@@ -83,6 +83,59 @@ class OCREngine:
                 ]
         return data
 
+    def _check_limits(self, pdf_path: str = None, user_id: int = None):
+        """Проверяет лимиты перед запуском задания. Бросает ValueError если лимит превышен."""
+        from datetime import timedelta
+
+        now = datetime.utcnow()
+        day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timedelta(days=1)
+
+        # 1. Лимит страниц на документ
+        if settings.MAX_PAGES_PER_JOB > 0 and pdf_path:
+            try:
+                import fitz
+                doc = fitz.open(pdf_path)
+                page_count = len(doc)
+                doc.close()
+                if page_count > settings.MAX_PAGES_PER_JOB:
+                    raise ValueError(
+                        f"Документ содержит {page_count} страниц. "
+                        f"Максимально допустимо: {settings.MAX_PAGES_PER_JOB}. "
+                        f"Разбейте документ на части."
+                    )
+            except ValueError:
+                raise
+            except Exception:
+                pass  # Если не удалось открыть PDF — пропускаем проверку
+
+        # 2. Дневной лимит токенов
+        if settings.DAILY_TOKEN_LIMIT > 0:
+            rows = self.db.query(Log.message).filter(
+                Log.stage == "TOKENS_USED",
+                Log.created_at >= day_start,
+                Log.created_at < day_end
+            ).all()
+            used_today = sum(int(r.message) for r in rows if r.message and r.message.isdigit())
+            if used_today >= settings.DAILY_TOKEN_LIMIT:
+                raise ValueError(
+                    f"Дневной лимит токенов исчерпан: использовано {used_today:,} из {settings.DAILY_TOKEN_LIMIT:,}. "
+                    f"Лимит обновится в 00:00 UTC. Обратитесь к администратору."
+                )
+
+        # 3. Лимит заданий на пользователя в день
+        if settings.MAX_JOBS_PER_USER_PER_DAY > 0 and user_id:
+            jobs_today = self.db.query(ProcessingJob).filter(
+                ProcessingJob.user_id == user_id,
+                ProcessingJob.created_at >= day_start,
+                ProcessingJob.created_at < day_end
+            ).count()
+            if jobs_today >= settings.MAX_JOBS_PER_USER_PER_DAY:
+                raise ValueError(
+                    f"Превышен дневной лимит заданий: {jobs_today} из {settings.MAX_JOBS_PER_USER_PER_DAY}. "
+                    f"Лимит обновится в 00:00 UTC."
+                )
+
     def log(self, stage: str, message: str):
         logger.info(f"[{self.job_id}] {stage}: {message}")
         log_entry = Log(job_id=self.job_id, stage=stage, message=message)
@@ -188,6 +241,18 @@ class OCREngine:
     def run(self, pdf_path: str):
         try:
             job = self.db.query(ProcessingJob).filter(ProcessingJob.id == self.job_id).first()
+
+            # Проверяем лимиты ДО начала обработки
+            try:
+                self._check_limits(pdf_path=pdf_path, user_id=job.user_id)
+            except ValueError as limit_err:
+                job.status = "error"
+                job.error_message = str(limit_err)
+                job.finished_at = datetime.utcnow()
+                self.db.commit()
+                self.log("LIMIT_EXCEEDED", str(limit_err))
+                return
+
             job.status = "processing"
             job.started_at = datetime.utcnow()
             self.db.commit()

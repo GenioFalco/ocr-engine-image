@@ -395,6 +395,10 @@ def get_quota(db: Session = Depends(get_db), admin: User = Depends(get_current_a
 
     today_total = days_stats[-1]["tokens"] if days_stats else 0
 
+    daily_limit = settings.DAILY_TOKEN_LIMIT
+    daily_remaining = max(0, daily_limit - today_total) if daily_limit > 0 else None
+    daily_pct = min(100, round(today_total / daily_limit * 100, 1)) if daily_limit > 0 else 0
+
     return {
         "model": model_name,
         "provider": provider_name,
@@ -406,7 +410,15 @@ def get_quota(db: Session = Depends(get_db), admin: User = Depends(get_current_a
         "total_all_time": total_all_time,
         "days": days_stats,
         "free_tier_limit": 1_000_000,
-        "free_tier_remaining": max(0, 1_000_000 - total_all_time)
+        "free_tier_remaining": max(0, 1_000_000 - total_all_time),
+        "limits": {
+            "daily_token_limit": daily_limit,
+            "daily_token_used": today_total,
+            "daily_token_remaining": daily_remaining,
+            "daily_token_pct": daily_pct,
+            "max_pages_per_job": settings.MAX_PAGES_PER_JOB,
+            "max_jobs_per_user_per_day": settings.MAX_JOBS_PER_USER_PER_DAY,
+        }
     }
 
 # --- Management API ---

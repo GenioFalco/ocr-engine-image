@@ -691,6 +691,37 @@ const QuotaWidget = () => {
                 </p>
             </div>
 
+            {quota.limits && (
+                <div className="border-t border-slate-100 pt-3 mb-3">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Активные лимиты</p>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div className="bg-slate-50 rounded-lg p-2">
+                            <p className="text-slate-400">Токенов в сутки</p>
+                            {quota.limits.daily_token_limit > 0 ? (
+                                <>
+                                    <p className={`font-bold ${quota.limits.daily_token_pct >= 90 ? 'text-red-600' : quota.limits.daily_token_pct >= 70 ? 'text-amber-600' : 'text-slate-700'}`}>
+                                        {quota.limits.daily_token_used.toLocaleString()} / {quota.limits.daily_token_limit.toLocaleString()}
+                                    </p>
+                                    <div className="w-full h-1 bg-slate-200 rounded-full mt-1">
+                                        <div className={`h-1 rounded-full ${quota.limits.daily_token_pct >= 90 ? 'bg-red-500' : quota.limits.daily_token_pct >= 70 ? 'bg-amber-400' : 'bg-emerald-500'}`}
+                                            style={{ width: `${quota.limits.daily_token_pct}%` }} />
+                                    </div>
+                                </>
+                            ) : <p className="font-bold text-slate-400">Без лимита</p>}
+                        </div>
+                        <div className="bg-slate-50 rounded-lg p-2">
+                            <p className="text-slate-400">Макс. страниц в документе</p>
+                            <p className="font-bold text-slate-700">{quota.limits.max_pages_per_job > 0 ? quota.limits.max_pages_per_job : '∞'}</p>
+                        </div>
+                        <div className="bg-slate-50 rounded-lg p-2">
+                            <p className="text-slate-400">Заданий / пользователь / день</p>
+                            <p className="font-bold text-slate-700">{quota.limits.max_jobs_per_user_per_day > 0 ? quota.limits.max_jobs_per_user_per_day : '∞'}</p>
+                        </div>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">Изменить: переменные DAILY_TOKEN_LIMIT, MAX_PAGES_PER_JOB, MAX_JOBS_PER_USER_PER_DAY в docker-compose.yml</p>
+                </div>
+            )}
+
             <div className="grid grid-cols-7 gap-1 mt-3">
                 {quota.days.map((d, i) => (
                     <div key={i} className="flex flex-col items-center gap-1">
