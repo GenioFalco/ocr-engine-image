@@ -69,6 +69,16 @@ const findMainTable = (obj) => {
     return mainArr;
 };
 
+// ── Маппинг внутренних имён типов документов → русские названия ──────────────
+const DOC_TYPE_LABELS = {
+    'UPD':             'Универсальный передаточный документ',
+    'Act':             'Акт выполненных работ или оказание услуг',
+    'Invoice':         'Счет на оплату или Invoice',
+    'Invoice-Factura': 'Счет-фактура',
+    'unknown':         'Неизвестный тип',
+};
+const getDocTypeLabel = (type) => DOC_TYPE_LABELS[type] || type || '-';
+
 // ── Основная функция экспорта ─────────────────────────────────────────────────
 // jobResults: Array<{ jobId: string, filename: string, documents: Array }>
 export const exportClosingDocsToExcel = (jobResults) => {
@@ -160,7 +170,7 @@ export const exportClosingDocsToExcel = (jobResults) => {
             ].filter(Boolean).join('\n');
 
             rows.push({
-                'Вид документа':       doc.document_type || '-',
+                'Вид документа':       getDocTypeLabel(doc.document_type),
                 'Организация (ИНН покупателя)': buyerINN || '-',
                 'Описание':            description || '-',
                 'Файл':                filename || jobId || '-',
