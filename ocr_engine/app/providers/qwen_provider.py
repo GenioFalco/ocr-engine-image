@@ -184,7 +184,19 @@ class QwenProvider(BaseLLM):
             return ExtractionResult(fields={}, stamps=[], signatures=[], raw_response="{}")
 
         # Определяем: есть ли в схеме поле items (таблица строк)?
-        schema_has_items = "items" in json_schema
+        # Ищем рекурсивно, т.к. схема может быть вложенной
+        def _has_items_field(obj, depth=0):
+            if depth > 6:
+                return False
+            if isinstance(obj, dict):
+                if "items" in obj:
+                    return True
+                return any(_has_items_field(v, depth + 1) for v in obj.values())
+            if isinstance(obj, list):
+                return any(_has_items_field(item, depth + 1) for item in obj)
+            return False
+        schema_has_items = _has_items_field(json_schema)
+        logger.debug(f"schema_has_items={schema_has_items} for schema keys: {list(json_schema.keys()) if isinstance(json_schema, dict) else type(json_schema)}")
 
         try:
             limited_data = images_data[:10]
@@ -227,6 +239,8 @@ class QwenProvider(BaseLLM):
                     logger.info("Повторный проход шапки завершён.")
                 except Exception as header_err:
                     logger.warning(f"Повторный проход шапки не удался: {header_err}")
+                # Если PASS-1 обрезан — значит документ большой, items точно есть
+                schema_has_items = True
 
             # ── Проход 2: строки таблицы (items) ────────────────────────────
             _recovered_items = None
