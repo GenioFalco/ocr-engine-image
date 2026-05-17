@@ -17,11 +17,11 @@ class QwenProvider(BaseLLM):
     Direct Qwen provider via DashScope's OpenAI compatible API endpoint.
     Base URL: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
     """
-    def __init__(self, api_key: str, model: str = "qwen-vl-max-latest", temperature: float = 0.1, max_tokens: int = 8000):
+    def __init__(self, api_key: str, model: str = "qwen-vl-max-latest", temperature: float = 0.1, max_tokens: int = 16000):
         self.api_key = api_key
         self.model = model
         self.temperature = temperature
-        self.max_tokens = min(max_tokens, 8192)
+        self.max_tokens = max_tokens  # убрали cap 8192 — он обрезал ответ на больших документах
         if OpenAI:
             # Pointing the OpenAI client to Qwen's DashScope compatible API (International Region)
             self.client = OpenAI(
@@ -169,13 +169,20 @@ class QwenProvider(BaseLLM):
                 max_tokens=self.max_tokens
             )
             
+            finish_reason = response.choices[0].finish_reason
+            if finish_reason == "length":
+                logger.warning(
+                    f"Qwen output was TRUNCATED (finish_reason=length, max_tokens={self.max_tokens}). "
+                    "JSON будет неполным. Попробуйте уменьшить документ или увеличить max_tokens."
+                )
+
             resp_content = response.choices[0].message.content
             raw_response = resp_content
-            
+
             resp_content = resp_content.replace("```json", "").replace("```", "").strip()
             if resp_content.startswith("[") and resp_content.endswith("]"):
                 resp_content = resp_content[1:-1].strip()
-                
+
             try:
                 data = json.loads(resp_content)
             except Exception as e:
