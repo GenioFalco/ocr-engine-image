@@ -5,6 +5,7 @@
 Лист 1 — Сводка:  кол-во сканирований, токены, стоимость, оценки.
 Лист 2 — Детали:  каждый документ с пользователем, оценкой, комментарием.
 """
+import base64
 import io
 import json
 import logging
@@ -251,6 +252,42 @@ def build_daily_report(db: Session, report_date: datetime | None = None) -> byte
     return buf.getvalue()
 
 
+def _smtp_ntlm_login(server: smtplib.SMTP, username: str, password: str) -> None:
+    """
+    NTLM-аутентификация для Exchange SMTP (поддерживает AUTH NTLM).
+    Работает без SSL/TLS и без поддержки AUTH LOGIN.
+    """
+    try:
+        from ntlm_auth.ntlm import NtlmContext
+    except ImportError:
+        raise RuntimeError(
+            "Для NTLM-аутентификации установите пакет ntlm-auth: pip install ntlm-auth"
+        )
+
+    # Имя пользователя может быть в формате DOMAIN\\user или просто user
+    domain: str = ""
+    user = username
+    if "\\" in username:
+        domain, user = username.split("\\", 1)
+
+    ctx = NtlmContext(user, password, domain, "", ntlm_compatibility=3)
+
+    # Шаг 1 — Negotiate
+    negotiate_b64 = base64.b64encode(ctx.step()).decode("ascii")
+    code, resp = server.docmd("AUTH", f"NTLM {negotiate_b64}")
+    if code != 334:
+        raise smtplib.SMTPAuthenticationError(code, resp)
+
+    # Шаг 2 — Challenge → Authenticate
+    challenge_bytes = base64.b64decode(resp)
+    auth_b64 = base64.b64encode(ctx.step(challenge_bytes)).decode("ascii")
+    code, resp = server.docmd(auth_b64)
+    if code != 235:
+        raise smtplib.SMTPAuthenticationError(code, resp)
+
+    logger.debug("NTLM SMTP аутентификация прошла успешно.")
+
+
 def send_daily_report():
     """Точка входа для планировщика. Собирает отчёт и шлёт письмо."""
     if not settings.SMTP_HOST:
@@ -273,7 +310,10 @@ def send_daily_report():
             return
 
         msg = MIMEMultipart()
-        msg["From"]    = settings.SMTP_FROM or settings.SMTP_USER
+        smtp_from = settings.SMTP_FROM or settings.SMTP_USER
+        # Имя отправителя берём из логина (часть до @), чтобы правила Outlook работали
+        display_name = (settings.SMTP_USER or smtp_from.split("@")[0]) if smtp_from else "ces_robot"
+        msg["From"]    = f"{display_name} <{smtp_from}>"
         msg["To"]      = ", ".join(recipients)
         msg["Subject"] = f"[OCR Engine] Ежедневный отчёт за {report_date.strftime('%d.%m.%Y')}"
 
@@ -296,7 +336,8 @@ def send_daily_report():
             server.starttls()
             server.ehlo()
         if settings.SMTP_USER and settings.SMTP_PASSWORD:
-            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            # Exchange принимает только NTLM; обычный AUTH LOGIN даёт 535
+            _smtp_ntlm_login(server, settings.SMTP_USER, settings.SMTP_PASSWORD)
 
         server.sendmail(msg["From"], recipients, msg.as_string())
         server.quit()

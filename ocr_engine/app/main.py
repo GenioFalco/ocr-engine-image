@@ -1,7 +1,46 @@
 import logging
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+
+
+# ── Логирование с временем МСК (UTC+3) ───────────────────────────────────────
+class _MskFormatter(logging.Formatter):
+    """Форматтер с временными метками МСК (UTC+3)."""
+    _MSK_OFFSET = 3 * 3600  # секунд
+
+    def converter(self, timestamp):  # type: ignore[override]
+        return time.gmtime(timestamp + self._MSK_OFFSET)
+
+    def formatTime(self, record, datefmt=None):
+        ct = self.converter(record.created)
+        if datefmt:
+            return time.strftime(datefmt, ct)
+        return time.strftime("%Y-%m-%d %H:%M:%S", ct) + " МСК"
+
+
+def _setup_msk_logging():
+    fmt = _MskFormatter(
+        fmt="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+    )
+    root = logging.getLogger()
+    if not root.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(fmt)
+        root.addHandler(handler)
+    else:
+        for h in root.handlers:
+            h.setFormatter(fmt)
+
+    # Применяем и к uvicorn-логгерам
+    for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+        lg = logging.getLogger(name)
+        for h in lg.handlers:
+            h.setFormatter(fmt)
+
+
+_setup_msk_logging()
 from fastapi.openapi.utils import get_openapi
 from app.api.routes import router as api_router
 from app.api.auth import router as auth_router
