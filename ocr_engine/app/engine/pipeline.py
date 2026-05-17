@@ -40,14 +40,14 @@ class OCREngine:
                 api_key=active_model.api_key,
                 model=active_model.model_name,
                 temperature=active_model.temperature,
-                max_tokens=active_model.max_tokens or 8000
+                max_tokens=active_model.max_tokens or 16000
             )
         elif active_model.provider == "qwen":
             return QwenProvider(
                 api_key=active_model.api_key,
                 model=active_model.model_name,
                 temperature=active_model.temperature,
-                max_tokens=active_model.max_tokens or 8000
+                max_tokens=active_model.max_tokens or 16000
             )
         else:
             raise ValueError(f"Unsupported provider: {active_model.provider}")
