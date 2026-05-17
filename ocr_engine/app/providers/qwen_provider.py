@@ -343,11 +343,6 @@ class QwenProvider(BaseLLM):
             if "documents" in data and isinstance(data["documents"], list) and len(data["documents"]) > 0:
                 data = data["documents"][0]
 
-            # Вставляем items из второго прохода
-            if _recovered_items is not None:
-                data["items"] = _recovered_items
-                logger.info(f"Items из прохода 2 вставлены в результат: {len(_recovered_items)} шт.")
-            
             stamps = []
             signatures = []
             if "visual_marks" in data:
@@ -355,7 +350,7 @@ class QwenProvider(BaseLLM):
                  if isinstance(visual_marks, dict):
                      stamps = visual_marks.get("seals", [])
                      signatures = visual_marks.get("signatures", [])
-                     
+
             if not isinstance(stamps, list): stamps = []
             if not isinstance(signatures, list): signatures = []
 
@@ -364,6 +359,12 @@ class QwenProvider(BaseLLM):
                 data = data["structured"]
             elif "fields" in data and isinstance(data["fields"], dict):
                 data = data["fields"]
+
+            # Вставляем items из второго прохода ПОСЛЕ unwrap structured/fields,
+            # иначе они перезаписываются пустым items: [] из внутреннего объекта
+            if _recovered_items is not None:
+                data["items"] = _recovered_items
+                logger.info(f"Items из прохода 2 вставлены в результат: {len(_recovered_items)} шт.")
 
             # Second-pass: pop visual_marks if LLM put them inside structured/fields
             if "visual_marks" in data:
