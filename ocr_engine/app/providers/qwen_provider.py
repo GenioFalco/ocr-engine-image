@@ -17,11 +17,11 @@ class QwenProvider(BaseLLM):
     Direct Qwen provider via DashScope's OpenAI compatible API endpoint.
     Base URL: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
     """
-    def __init__(self, api_key: str, model: str = "qwen-vl-max-latest", temperature: float = 0.1, max_tokens: int = 16000):
+    def __init__(self, api_key: str, model: str = "qwen-vl-max-latest", temperature: float = 0.1, max_tokens: int = 8192):
         self.api_key = api_key
         self.model = model
         self.temperature = temperature
-        self.max_tokens = max_tokens  # убрали cap 8192 — он обрезал ответ на больших документах
+        self.max_tokens = min(max_tokens, 8192)  # Qwen VL Max API hard limit = 8192
         if OpenAI:
             # Pointing the OpenAI client to Qwen's DashScope compatible API (International Region)
             self.client = OpenAI(
@@ -170,14 +170,47 @@ class QwenProvider(BaseLLM):
             )
             
             finish_reason = response.choices[0].finish_reason
-            if finish_reason == "length":
-                logger.warning(
-                    f"Qwen output was TRUNCATED (finish_reason=length, max_tokens={self.max_tokens}). "
-                    "JSON будет неполным. Попробуйте уменьшить документ или увеличить max_tokens."
-                )
-
             resp_content = response.choices[0].message.content
             raw_response = resp_content
+
+            # Если ответ обрезан — делаем второй вызов только для строк таблицы
+            if finish_reason == "length":
+                logger.warning(
+                    f"Qwen output TRUNCATED (finish_reason=length, max_tokens={self.max_tokens}). "
+                    "Запускаем второй проход для извлечения строк таблицы..."
+                )
+                try:
+                    items_prompt = (
+                        "Извлеки ТОЛЬКО строки таблицы товаров/услуг из документа.\n"
+                        "Верни JSON-массив объектов, каждый объект — одна строка таблицы.\n"
+                        "Поля: name (наименование), quantity (кол-во), unit (ед.изм.), "
+                        "price (цена), amount (сумма), vat_rate (ставка НДС), vat_amount (НДС).\n"
+                        "Только реальные позиции товаров/услуг, без заголовков и итогов. Максимум 50 строк.\n"
+                        "Верни ТОЛЬКО JSON-массив без пояснений."
+                    )
+                    items_content = self._prepare_image_message(items_prompt, limited_data)
+                    items_resp = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=[{"role": "user", "content": items_content}],
+                        temperature=self.temperature,
+                        max_tokens=self.max_tokens
+                    )
+                    items_raw = items_resp.choices[0].message.content or ""
+                    items_raw = items_raw.replace("```json", "").replace("```", "").strip()
+                    items_data = json.loads(items_raw)
+                    if isinstance(items_data, list):
+                        # Подставим в основной ответ — заменим обрезанный items
+                        resp_content = resp_content + '[]}'  # попытка закрыть JSON
+                        logger.info(f"Второй проход вернул {len(items_data)} строк таблицы.")
+                        # Сохраняем items для последующей вставки в data
+                        _recovered_items = items_data
+                    else:
+                        _recovered_items = None
+                except Exception as items_err:
+                    logger.warning(f"Второй проход (items) не удался: {items_err}")
+                    _recovered_items = None
+            else:
+                _recovered_items = None
 
             resp_content = resp_content.replace("```json", "").replace("```", "").strip()
             if resp_content.startswith("[") and resp_content.endswith("]"):
@@ -230,10 +263,15 @@ class QwenProvider(BaseLLM):
                 data = data[0]
             elif not isinstance(data, dict):
                 data = {}
-                
+
             # Unwrap "documents" array if the LLM wrapped the response
             if "documents" in data and isinstance(data["documents"], list) and len(data["documents"]) > 0:
                 data = data["documents"][0]
+
+            # Если был второй проход для строк таблицы — вставляем их в data
+            if _recovered_items:
+                data["items"] = _recovered_items
+                logger.info(f"Строки таблицы из второго прохода вставлены: {len(_recovered_items)} шт.")
             
             stamps = []
             signatures = []
