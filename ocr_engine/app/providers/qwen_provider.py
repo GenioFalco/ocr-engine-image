@@ -102,16 +102,34 @@ class QwenProvider(BaseLLM):
              return ClassificationResult(document_type="unknown", confidence=0.0)
         return self.classify_page(image_paths[0], document_types)
 
-    def extract_document(self, images_data: List[Dict[str, Any]], json_schema: Dict[str, Any]) -> ExtractionResult:
-        if not self.client:
-            logger.warning("Qwen client not initialized.")
-            return ExtractionResult(fields={}, stamps=[], signatures=[], raw_response="{}")
+    def _recover_partial_items(self, raw_str: str) -> list:
+        """Парсит все полные JSON-объекты из обрезанного массива (спасает items при truncation)."""
+        items = []
+        depth = 0
+        start = None
+        for i, ch in enumerate(raw_str):
+            if ch == '{':
+                if depth == 0:
+                    start = i
+                depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0 and start is not None:
+                    try:
+                        obj = json.loads(raw_str[start:i + 1])
+                        items.append(obj)
+                    except Exception:
+                        pass
+                    start = None
+        return items
 
-        try:
-            limited_data = images_data[:10]
-            schema_str = json.dumps(json_schema, ensure_ascii=False, indent=2)
-
-            prompt = f"""
+    def _build_extraction_prompt(self, schema_str: str, include_items: bool = True) -> str:
+        items_note = (
+            "• items: только реальные позиции товаров/услуг, не заголовки и не итоги. Максимум 30 строк."
+            if include_items else
+            "• НЕ извлекай строки таблицы товаров/услуг (поле items). Оставь items пустым массивом []."
+        )
+        return f"""
 Извлеки данные из документа и верни их строго в формате JSON-схемы ниже. Только то, что реально видишь на изображении.
 
 СХЕМА:
@@ -153,13 +171,29 @@ class QwenProvider(BaseLLM):
 • name — только название организации/ИП, без адреса и реквизитов
 • address — полный адрес включая индекс
 • Числа (суммы, ИНН) — переписывай цифра за цифрой, не округляй
-• items: только реальные позиции товаров/услуг, не заголовки и не итоги. Максимум 30 строк.
+{items_note}
 • raw_text — верни пустой строкой ""
 • Поле отсутствует на скане → пиши null
 
 Верни ТОЛЬКО JSON-объект без каких-либо пояснений и без ```json.
-            """
-            
+        """
+
+    def extract_document(self, images_data: List[Dict[str, Any]], json_schema: Dict[str, Any]) -> ExtractionResult:
+        if not self.client:
+            logger.warning("Qwen client not initialized.")
+            return ExtractionResult(fields={}, stamps=[], signatures=[], raw_response="{}")
+
+        # Определяем: есть ли в схеме поле items (таблица строк)?
+        schema_has_items = "items" in json_schema
+
+        try:
+            limited_data = images_data[:10]
+            schema_str = json.dumps(json_schema, ensure_ascii=False, indent=2)
+
+            # ── Проход 1: шапка документа ───────────────────────────────────
+            # Если в схеме есть items — сразу просим НЕ извлекать их (отдельный проход),
+            # чтобы шапка гарантированно вошла в 8192 токенов.
+            prompt = self._build_extraction_prompt(schema_str, include_items=not schema_has_items)
             message_content = self._prepare_image_message(prompt, limited_data)
 
             response = self.client.chat.completions.create(
@@ -168,17 +202,35 @@ class QwenProvider(BaseLLM):
                 temperature=self.temperature,
                 max_tokens=self.max_tokens
             )
-            
+
             finish_reason = response.choices[0].finish_reason
             resp_content = response.choices[0].message.content
             raw_response = resp_content
 
-            # Если ответ обрезан — делаем второй вызов только для строк таблицы
             if finish_reason == "length":
                 logger.warning(
-                    f"Qwen output TRUNCATED (finish_reason=length, max_tokens={self.max_tokens}). "
-                    "Запускаем второй проход для извлечения строк таблицы..."
+                    f"Qwen PASS-1 TRUNCATED (finish_reason=length, max_tokens={self.max_tokens}). "
+                    "Шапка документа обрезана — запускаем повторный проход только для шапки..."
                 )
+                # Повторный проход для шапки с явным запретом items
+                try:
+                    header_prompt = self._build_extraction_prompt(schema_str, include_items=False)
+                    header_content = self._prepare_image_message(header_prompt, limited_data)
+                    header_resp = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=[{"role": "user", "content": header_content}],
+                        temperature=self.temperature,
+                        max_tokens=self.max_tokens
+                    )
+                    resp_content = header_resp.choices[0].message.content or resp_content
+                    raw_response = resp_content
+                    logger.info("Повторный проход шапки завершён.")
+                except Exception as header_err:
+                    logger.warning(f"Повторный проход шапки не удался: {header_err}")
+
+            # ── Проход 2: строки таблицы (items) ────────────────────────────
+            _recovered_items = None
+            if schema_has_items:
                 try:
                     items_prompt = (
                         "Извлеки ТОЛЬКО строки таблицы товаров/услуг из документа.\n"
@@ -196,21 +248,30 @@ class QwenProvider(BaseLLM):
                         max_tokens=self.max_tokens
                     )
                     items_raw = items_resp.choices[0].message.content or ""
+                    items_finish = items_resp.choices[0].finish_reason
                     items_raw = items_raw.replace("```json", "").replace("```", "").strip()
-                    items_data = json.loads(items_raw)
-                    if isinstance(items_data, list):
-                        # Подставим в основной ответ — заменим обрезанный items
-                        resp_content = resp_content + '[]}'  # попытка закрыть JSON
-                        logger.info(f"Второй проход вернул {len(items_data)} строк таблицы.")
-                        # Сохраняем items для последующей вставки в data
-                        _recovered_items = items_data
+
+                    if items_finish == "length":
+                        logger.warning("Qwen PASS-2 (items) TRUNCATED — парсим частично.")
+                        _recovered_items = self._recover_partial_items(items_raw)
+                        logger.info(f"Частичное восстановление items: {len(_recovered_items)} строк.")
                     else:
-                        _recovered_items = None
+                        try:
+                            items_data = json.loads(items_raw)
+                            if isinstance(items_data, list):
+                                _recovered_items = items_data
+                            else:
+                                _recovered_items = None
+                        except Exception:
+                            # JSON сломан — пробуем частичный парсер
+                            _recovered_items = self._recover_partial_items(items_raw)
+                            logger.warning(f"Items JSON broken, partial recovery: {len(_recovered_items)} строк.")
+
+                    if _recovered_items is not None:
+                        logger.info(f"Проход 2 (items): извлечено {len(_recovered_items)} строк таблицы.")
                 except Exception as items_err:
-                    logger.warning(f"Второй проход (items) не удался: {items_err}")
+                    logger.warning(f"Проход 2 (items) не удался: {items_err}")
                     _recovered_items = None
-            else:
-                _recovered_items = None
 
             resp_content = resp_content.replace("```json", "").replace("```", "").strip()
             if resp_content.startswith("[") and resp_content.endswith("]"):
@@ -268,10 +329,10 @@ class QwenProvider(BaseLLM):
             if "documents" in data and isinstance(data["documents"], list) and len(data["documents"]) > 0:
                 data = data["documents"][0]
 
-            # Если был второй проход для строк таблицы — вставляем их в data
-            if _recovered_items:
+            # Вставляем items из второго прохода
+            if _recovered_items is not None:
                 data["items"] = _recovered_items
-                logger.info(f"Строки таблицы из второго прохода вставлены: {len(_recovered_items)} шт.")
+                logger.info(f"Items из прохода 2 вставлены в результат: {len(_recovered_items)} шт.")
             
             stamps = []
             signatures = []
