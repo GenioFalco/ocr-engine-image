@@ -379,40 +379,41 @@ class OCREngine:
 
                 # 2. OCR Classification
                 page_text = native_text
+                page_rotation = 0  # запоминаем для рендера LLM
                 if len(page_text) < 160:
                     # 2.1 Orientation Detection on full page (so we don't accidentally crop off the inverted header)
                     mat_osd = fitz.Matrix(1.5, 1.5)
                     pix_osd = page.get_pixmap(matrix=mat_osd, alpha=False)
-                    rotation = detect_orientation(pix_osd.samples, pix_osd.width, pix_osd.height, pix_osd.n, pix_osd.stride)
-                    
-                    if rotation != 0:
-                        logs.append(("ORIENTATION", f"OSD detected incorrect orientation. Auto-rotating page {i+1} by {rotation} degrees."))
-                        page.set_rotation(rotation)
+                    page_rotation = detect_orientation(pix_osd.samples, pix_osd.width, pix_osd.height, pix_osd.n, pix_osd.stride)
+
+                    if page_rotation != 0:
+                        logs.append(("ORIENTATION", f"OSD detected incorrect orientation. Auto-rotating page {i+1} by {page_rotation} degrees."))
+                        page.set_rotation(page_rotation)
 
                     # 2.2 Header Extraction on the now-correctly oriented page
                     # При повороте страницы заголовок может оказаться не в первых 35%,
                     # поэтому сканируем 65% страницы чтобы захватить метку типа документа
-                    crop_ratio = 0.65 if rotation != 0 else 0.35
+                    crop_ratio = 0.65 if page_rotation != 0 else 0.35
                     clip = fitz.Rect(0, 0, page.rect.width, page.rect.height * crop_ratio)
                     mat = fitz.Matrix(2.0, 2.0)
                     pix = page.get_pixmap(matrix=mat, clip=clip, alpha=False)
 
-                    logs.append(("OCR_START", f"Running Tesserocr on Page {i+1} (in memory, {int(crop_ratio*100)}% crop, rotation={rotation}°)"))
+                    logs.append(("OCR_START", f"Running Tesserocr on Page {i+1} (in memory, {int(crop_ratio*100)}% crop, rotation={page_rotation}°)"))
                     page_text += "\n" + extract_text_from_raw_samples(
                         pix.samples, pix.width, pix.height, pix.n, pix.stride
                     )
                 else:
                     logs.append(("OCR_START", f"Skipping OCR. Extracted text natively for Page {i+1}"))
-                
+
                 doc_thread.close()
                 t_render = time.time() - t0
                 logs.append(("OCR_TIME", f"Page {i+1} processed in {t_render:.2f}s"))
 
                 doc_type, header_hit, reasons = classify_page_text(page_text)
-                
+
                 short_text = page_text[:100].replace("\n", " ") + "..."
                 logs.append(("OCR_RESULT", f"Type: {doc_type} | Header {header_hit} | {reasons}\nPreview: {short_text}"))
-                
+
                 confidence = 1.0 if header_hit else 0.5
                 return {
                     "page_num": i+1,
@@ -420,6 +421,7 @@ class OCREngine:
                     "header_hit": header_hit,
                     "reasons": reasons,
                     "confidence": confidence,
+                    "rotation": page_rotation,   # ← сохраняем угол для рендера LLM
                     "logs": logs
                 }
 
@@ -518,15 +520,21 @@ class OCREngine:
                 
                 for p_idx, p in enumerate(pages_to_render):
                     page_idx = p["page_num"] - 1
+                    rotation = p.get("rotation", 0)  # угол, обнаруженный на этапе классификации
                     t0 = time.time()
                     dt = fitz.open(stream=pdf_bytes, filetype="pdf")
+                    page_obj = dt[page_idx]
+                    # Применяем rotation чтобы Qwen получил выровненное изображение
+                    if rotation != 0:
+                        page_obj.set_rotation(rotation)
                     mat = fitz.Matrix(2.5, 2.5)  # 180 DPI — better digit accuracy in tables
-                    pix = dt[page_idx].get_pixmap(matrix=mat, alpha=False)
+                    pix = page_obj.get_pixmap(matrix=mat, alpha=False)
                     jpeg_bytes = pix.tobytes("jpeg")
                     dt.close()
                     new_name = f"{doc_type_name}_{g_idx+1}_page_{p_idx+1}.jpg".replace(" ", "_")
                     t_render = time.time() - t0
-                    self.detail_log("RENDER_TIME", f"Rendered {new_name} in {t_render:.2f}s")
+                    rot_note = f" rot={rotation}°" if rotation else ""
+                    self.detail_log("RENDER_TIME", f"Rendered {new_name} in {t_render:.2f}s{rot_note}")
                     group_images_data.append({"bytes": jpeg_bytes, "name": new_name})
                     
                 filenames = [img["name"] for img in group_images_data]
