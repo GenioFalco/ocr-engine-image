@@ -296,7 +296,11 @@ def send_daily_report():
 
     db = SessionLocal()
     try:
-        report_date = datetime.now(timezone.utc) - timedelta(days=1)
+        # Планировщик срабатывает в 21:00 UTC = 00:00 МСК.
+        # В этот момент datetime.now(UTC) ещё даёт дату "сегодня" в МСК
+        # (21:00 UTC 17.05 = 00:00 МСК 18.05, но UTC-дата всё ещё 17.05).
+        # Значит вычитать день НЕ нужно — report_date = текущая дата UTC.
+        report_date = datetime.now(timezone.utc)
         xlsx_bytes  = build_daily_report(db, report_date)
         filename    = f"OCR_Report_{report_date.strftime('%Y-%m-%d')}.xlsx"
 

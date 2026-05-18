@@ -55,19 +55,30 @@ logger = logging.getLogger(__name__)
 Base.metadata.create_all(bind=engine)
 
 # ── APScheduler: ежедневный отчёт ────────────────────────────────────────────
+# При --workers 8 каждый uvicorn-воркер импортирует main.py и запускает свой
+# планировщик → 8 писем одновременно. Защита: эксклюзивная файловая блокировка.
+# Только один процесс захватит замок и запустит scheduler; остальные пропустят.
+_scheduler = None
 try:
+    import fcntl as _fcntl
+    _LOCK_PATH = "/tmp/ocr_scheduler.lock"
+    _lock_fd = open(_LOCK_PATH, "w")
+    _fcntl.flock(_lock_fd, _fcntl.LOCK_EX | _fcntl.LOCK_NB)  # неблокирующий захват
+
     from apscheduler.schedulers.background import BackgroundScheduler
     from apscheduler.triggers.cron import CronTrigger
     from app.services.report_service import send_daily_report
 
     _scheduler = BackgroundScheduler(timezone="UTC")
-    # Каждый день в 21:00 UTC = 00:00 МСК (UTC+3)
+    # Каждый день в 21:00 UTC = 00:00 МСК (UTC+3).
+    # В момент срабатывания datetime.now(UTC) = ещё тот же день МСК → не вычитаем день.
     _scheduler.add_job(send_daily_report, CronTrigger(hour=21, minute=0), id="daily_report")
     _scheduler.start()
-    logger.info("APScheduler запущен. Ежедневный отчёт в 21:00 UTC (00:00 МСК).")
+    logger.info("APScheduler запущен (lock захвачен). Ежедневный отчёт в 21:00 UTC (00:00 МСК).")
+except (IOError, OSError):
+    logger.info("APScheduler: другой воркер уже владеет блокировкой — планировщик не запускаем.")
 except Exception as _sch_err:
     logger.warning(f"APScheduler не удалось запустить: {_sch_err}")
-    _scheduler = None
 
 app = FastAPI(
     title="OCR Engine API",
