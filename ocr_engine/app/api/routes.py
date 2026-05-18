@@ -798,15 +798,73 @@ async def extract_text(
         raise HTTPException(status_code=500, detail=f"Ошибка извлечения текста: {str(e)}")
 
 
+_TORG12_DEFAULT_SCHEMA = {
+    "structured": {
+        "seller": {
+            "name":    {"value": None, "description": "Поставщик (организация)"},
+            "inn":     {"value": None, "description": "ИНН поставщика"},
+            "kpp":     {"value": None, "description": "КПП поставщика"},
+            "address": {"value": None, "description": "Адрес поставщика"},
+        },
+        "buyer": {
+            "name":    {"value": None, "description": "Плательщик (организация)"},
+            "inn":     {"value": None, "description": "ИНН покупателя"},
+            "kpp":     {"value": None, "description": "КПП покупателя"},
+            "address": {"value": None, "description": "Адрес покупателя"},
+        },
+        "shipper":        {"value": None, "description": "Грузоотправитель (если отличается от поставщика)"},
+        "consignee":      {"value": None, "description": "Грузополучатель (если отличается от покупателя)"},
+        "document_number":{"value": None, "description": "Номер накладной"},
+        "document_date":  {"value": None, "description": "Дата накладной (ДД.ММ.ГГГГ)"},
+        "basis":          {"value": None, "description": "Основание (договор / заказ)"},
+        "total_amount":   {"value": None, "description": "Итого без НДС (числом)"},
+        "vat_amount":     {"value": None, "description": "Сумма НДС (числом)"},
+        "total_with_vat": {"value": None, "description": "Итого с НДС (числом)"},
+        "items": [
+            {
+                "name":       {"value": None, "description": "Наименование товара"},
+                "unit":       {"value": None, "description": "Единица измерения"},
+                "quantity":   {"value": None, "description": "Количество"},
+                "price":      {"value": None, "description": "Цена за единицу без НДС"},
+                "amount":     {"value": None, "description": "Сумма без НДС"},
+                "vat_rate":   {"value": None, "description": "Ставка НДС (%)"},
+                "vat_amount": {"value": None, "description": "Сумма НДС"},
+                "total":      {"value": None, "description": "Всего с НДС"},
+            }
+        ],
+    }
+}
+
+_DEFAULT_SCHEMAS = {
+    "Torg12": _TORG12_DEFAULT_SCHEMA,
+}
+
 @router.post("/admin/init")
 def init_defaults(db: Session = Depends(get_db), admin: User = Depends(get_current_admin_user)):
-    defaults = ["Invoice", "Act", "UPD", "Contract"]
+    defaults = ["Invoice", "Act", "UPD", "Contract", "Torg12"]
     created = []
+    schemas_created = []
     for name in defaults:
         existing = db.query(DocumentType).filter(DocumentType.name == name).first()
         if not existing:
             dt = DocumentType(name=name, description=f"Default type for {name}")
             db.add(dt)
+            db.flush()  # get dt.id
             created.append(name)
+            # Create default schema if defined
+            if name in _DEFAULT_SCHEMAS:
+                existing_contract = db.query(Contract).filter(Contract.document_type_id == dt.id).first()
+                if not existing_contract:
+                    c = Contract(document_type_id=dt.id, json_schema=_DEFAULT_SCHEMAS[name], is_default=True)
+                    db.add(c)
+                    schemas_created.append(name)
+        else:
+            # DocumentType exists — ensure default schema is created if missing
+            if name in _DEFAULT_SCHEMAS:
+                existing_contract = db.query(Contract).filter(Contract.document_type_id == existing.id).first()
+                if not existing_contract:
+                    c = Contract(document_type_id=existing.id, json_schema=_DEFAULT_SCHEMAS[name], is_default=True)
+                    db.add(c)
+                    schemas_created.append(name)
     db.commit()
-    return {"status": "initialized", "created": created}
+    return {"status": "initialized", "created": created, "schemas_created": schemas_created}

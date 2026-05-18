@@ -82,12 +82,29 @@ BANK_CLUES_RX = re.compile(
     RXF,
 )
 
+# ── Товарная накладная (ТОРГ-12) ──────────────────────────────────────────────
+TORG12_HEADER_PATTERNS = [
+    r"\bТОВАРНАЯ\s+НАКЛАДНАЯ\b",
+    r"\bТОРГ\s*-?\s*12\b",
+    r"Унифицированная\s+форма\s*[№N]?\s*ТОРГ",
+    r"форма\s*[№N]?\s*ТОРГ-12",
+]
+TORG12_HEADER_RX = re.compile("|".join(TORG12_HEADER_PATTERNS), RXF)
+
+TORG12_BODY_PATTERNS = [
+    r"\bТОВАРНАЯ\s+НАКЛАДНАЯ\b",
+    r"\bГрузоотправитель\b.*\bГрузополучатель\b",  # обе строки присутствуют
+    r"\bТОРГ\s*-?\s*12\b",
+]
+TORG12_BODY_RX = re.compile("|".join(TORG12_BODY_PATTERNS), RXF | re.DOTALL)
+
 # Standardized Document Types
 # These should ideally match the "names" of your DocumentTypes in the database
 TYPE_UPD = "UPD"
 TYPE_AKT = "Act"
 TYPE_SCHET = "Invoice"
 TYPE_SF = "Invoice-Factura"
+TYPE_TORG12 = "Torg12"
 TYPE_UNKNOWN = "unknown"
 
 def norm(s: str) -> str:
@@ -203,17 +220,22 @@ def classify_page_text(txt: str) -> Tuple[str, bool, List[str]]:
         reasons.append("UPD:decree1137")
         return TYPE_UPD, True, reasons
 
-    # Priority 2: SF
+    # Priority 2: TORG-12 (Товарная накладная) — очень однозначный заголовок
+    if TORG12_HEADER_RX.search(h):
+        reasons.append("TORG12:title")
+        return TYPE_TORG12, True, reasons
+
+    # Priority 3: SF
     if SF_HEADER_RX.search(h):
         reasons.append("SF:title")
         return TYPE_SF, True, reasons
 
-    # Priority 3: AKT
+    # Priority 4: AKT
     if AKT_HEADER_RX.search(h):
         reasons.append("AKT:title")
         return TYPE_AKT, True, reasons
 
-    # Priority 4: SCHET
+    # Priority 5: SCHET
     if SCHET_HEADER_RX.search(h):
         reasons.append("SCH:headline")
         return TYPE_SCHET, True, reasons
@@ -224,6 +246,10 @@ def classify_page_text(txt: str) -> Tuple[str, bool, List[str]]:
         return TYPE_SCHET, False, reasons
 
     # BODY clues (Continuation of doc)
+    if TORG12_BODY_RX.search(t):
+        reasons.append("TORG12:body")
+        return TYPE_TORG12, False, reasons
+
     if re.search(r"\bАКТ\s*№\s*[\w/.\-]+", t, RXF) or re.search(r"\bСДАЧИ-?ПРИ[ЕЕ]МКИ", t, RXF):
         reasons.append("AKT:body")
         return TYPE_AKT, False, reasons

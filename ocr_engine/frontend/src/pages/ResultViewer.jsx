@@ -246,6 +246,7 @@ const ResultViewer = () => {
         'Act':             'Акт выполненных работ или оказание услуг',
         'Invoice':         'Счет на оплату или Invoice',
         'Invoice-Factura': 'Счет-фактура',
+        'Torg12':          'Товарная накладная (ТОРГ-12)',
         'unknown':         'Неизвестный тип',
     };
     const getDocTypeLabel = (type) => DOC_TYPE_LABELS[type] || type || '-';
