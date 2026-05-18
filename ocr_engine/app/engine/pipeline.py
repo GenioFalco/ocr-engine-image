@@ -388,15 +388,32 @@ class OCREngine:
 
                     if page_rotation != 0:
                         logs.append(("ORIENTATION", f"OSD detected incorrect orientation. Auto-rotating page {i+1} by {page_rotation} degrees."))
-                        page.set_rotation(page_rotation)
+                        # НЕ используем set_rotation() — PDF /Rotate=90 означает поворот CW,
+                        # а нам нужен CCW. Вместо этого поворачиваем пиксели через PIL ниже.
 
                     # 2.2 Header Extraction on the now-correctly oriented page
-                    # При повороте страницы заголовок может оказаться не в первых 35%,
+                    # При повороте заголовок может быть не в первых 35%,
                     # поэтому сканируем 65% страницы чтобы захватить метку типа документа
                     crop_ratio = 0.65 if page_rotation != 0 else 0.35
                     clip = fitz.Rect(0, 0, page.rect.width, page.rect.height * crop_ratio)
                     mat = fitz.Matrix(2.0, 2.0)
                     pix = page.get_pixmap(matrix=mat, clip=clip, alpha=False)
+
+                    # Физический поворот пикселей через PIL (PIL.rotate CCW-positive)
+                    if page_rotation != 0:
+                        try:
+                            from PIL import Image as _PILImage
+                            import io as _io
+                            _img = _PILImage.frombytes("RGB", (pix.width, pix.height), pix.samples)
+                            _img = _img.rotate(page_rotation, expand=True)
+                            _buf = _io.BytesIO()
+                            _img.save(_buf, format='PNG')
+                            _buf.seek(0)
+                            _img_rot = _PILImage.open(_buf)
+                            _rgb = _img_rot.convert("RGB")
+                            pix = fitz.Pixmap(fitz.csRGB, _rgb.width, _rgb.height, _rgb.tobytes(), False)
+                        except Exception as _rot_err:
+                            logs.append(("ORIENTATION_WARN", f"PIL rotation failed: {_rot_err}, using original"))
 
                     logs.append(("OCR_START", f"Running Tesserocr on Page {i+1} (in memory, {int(crop_ratio*100)}% crop, rotation={page_rotation}°)"))
                     page_text += "\n" + extract_text_from_raw_samples(
@@ -524,16 +541,28 @@ class OCREngine:
                     t0 = time.time()
                     dt = fitz.open(stream=pdf_bytes, filetype="pdf")
                     page_obj = dt[page_idx]
-                    # Применяем rotation чтобы Qwen получил выровненное изображение
-                    if rotation != 0:
-                        page_obj.set_rotation(rotation)
                     mat = fitz.Matrix(2.5, 2.5)  # 180 DPI — better digit accuracy in tables
                     pix = page_obj.get_pixmap(matrix=mat, alpha=False)
                     jpeg_bytes = pix.tobytes("jpeg")
                     dt.close()
+
+                    # Физический поворот через PIL (PIL.rotate — CCW-positive, как detect_orientation)
+                    # НЕ используем set_rotation() — PDF /Rotate=90 CW, нам нужен CCW
+                    if rotation != 0:
+                        try:
+                            from PIL import Image as _PILImg
+                            import io as _io2
+                            _img = _PILImg.open(_io2.BytesIO(jpeg_bytes))
+                            _img = _img.rotate(rotation, expand=True)
+                            _buf = _io2.BytesIO()
+                            _img.save(_buf, format='JPEG', quality=92)
+                            jpeg_bytes = _buf.getvalue()
+                        except Exception as _re:
+                            self.detail_log("ORIENTATION_WARN", f"PIL rotation failed for LLM render: {_re}")
+
                     new_name = f"{doc_type_name}_{g_idx+1}_page_{p_idx+1}.jpg".replace(" ", "_")
                     t_render = time.time() - t0
-                    rot_note = f" rot={rotation}°" if rotation else ""
+                    rot_note = f" PIL-rot={rotation}°" if rotation else ""
                     self.detail_log("RENDER_TIME", f"Rendered {new_name} in {t_render:.2f}s{rot_note}")
                     group_images_data.append({"bytes": jpeg_bytes, "name": new_name})
                     
