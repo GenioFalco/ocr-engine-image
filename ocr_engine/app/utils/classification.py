@@ -50,18 +50,27 @@ SF_HEADER_RX = re.compile("|".join(SF_HEADER_PATTERNS), RXF)
 
 UPD_HEADER_PATTERNS = [
     r"\bУНИВЕРСАЛЬН(ЫЙ|ОЕ)\s+(ПЕРЕДАТОЧН(ЫЙ|ОЕ)|СЧ[ЕЕ]Т-?ФАКТУРА)\b",
-    r"Приложение\s*[№N][oо]?\s*1\s*к\s*постановлению\s*Правительства\s*Российской\s*Федерации\s*от\s*26\s*декабря\s*2011",
+    r"Приложение\s*[№N][oо]?\s*1\s*к\s*постановлению\s*Правительства\s*Российской\s*Федерации\s*от\s*26\s*(декабря|12)\s*[\.\s]*2011",
 ]
 UPD_HEADER_RX = re.compile("|".join(UPD_HEADER_PATTERNS), RXF)
 
 # OCR-tolerant UPD clues: partial decree text that survives bad OCR scans
 # e.g. "1 кпостановлению Правительства Российской Федерации от 26 декабря 2011 « Ne 1137"
+# Note: постановлению.*1137 uses re.DOTALL separately because .* must cross newlines
 UPD_BODY_PATTERNS = [
     r"\bУНИВЕРСАЛЬН(ЫЙ|ОЕ)\s+(ПЕРЕДАТОЧН(ЫЙ|ОЕ)|СЧ[ЕЕ]Т-?ФАКТУРА)\b",
-    r"к\s*постановлению\s*Правительства\s*Российской\s*Федерации\s*от\s*26\s*декабря\s*2011",
-    r"постановлению\s*Правительства\s*Российской\s*Федерации.*1137",
+    r"к\s*постановлению\s*Правительства\s*Российской\s*Федерации\s*от\s*26\s*(декабря|12)[\.\s]*2011",
+    # УПД-специфичное поле "Статус:" (только в форме УПД, не в обычной СФ)
+    r"\bСтатус\s*:\s*[12]\b",
+    # Аббревиатура УПД в тексте
+    r"\bУПД\b",
 ]
 UPD_BODY_RX = re.compile("|".join(UPD_BODY_PATTERNS), RXF)
+# Отдельный паттерн для "постановление...1137" с DOTALL (пересекает строки)
+UPD_DECREE_RX = re.compile(
+    r"постановлению\s*Правительства\s*Российской\s*Федерации[\s\S]{0,80}1137",
+    re.IGNORECASE
+)
 
 BANK_CLUES_RX = re.compile(
     r"\bИНН\b|\bКПП\b|\bБИК\b|\bСч\.\s*№|\bПолучатель\b|\bПлательщик\b|\bБанк\s+получателя\b",
@@ -169,16 +178,24 @@ def classify_page_text(txt: str) -> Tuple[str, bool, List[str]]:
     """
     reasons = []
     t = norm(txt)
-    h = norm(head(t))
+    # Увеличенный скан заголовка: УПД-метка часто стоит в левом сайдбаре,
+    # который в PDF-тексте может оказаться не в первых 18 строках
+    h = norm(head(t, 30))
 
-    # Priority 1: UPD
+    # Priority 1: UPD (заголовок)
     if UPD_HEADER_RX.search(h):
         reasons.append("UPD:title")
         return TYPE_UPD, True, reasons
 
-    # Priority 1.5: UPD by body clues (since UPDs usually have an SF header)
+    # Priority 1.5: UPD по телу документа
+    # (УПД содержит СФ-заголовок, поэтому проверяем до SF/SCHET)
     if UPD_BODY_RX.search(t):
         reasons.append("UPD:body")
+        return TYPE_UPD, True, reasons
+
+    # Priority 1.6: УПД по постановлению 1137 (через строки)
+    if UPD_DECREE_RX.search(t):
+        reasons.append("UPD:decree1137")
         return TYPE_UPD, True, reasons
 
     # Priority 2: SF
