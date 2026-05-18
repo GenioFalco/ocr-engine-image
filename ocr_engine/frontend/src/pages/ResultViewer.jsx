@@ -240,74 +240,76 @@ const ResultViewer = () => {
         </button>
     );
 
+    // Маппинг типов документов → русские названия (совпадает с excel.js)
+    const DOC_TYPE_LABELS = {
+        'UPD':             'Универсальный передаточный документ',
+        'Act':             'Акт выполненных работ или оказание услуг',
+        'Invoice':         'Счет на оплату или Invoice',
+        'Invoice-Factura': 'Счет-фактура',
+        'unknown':         'Неизвестный тип',
+    };
+    const getDocTypeLabel = (type) => DOC_TYPE_LABELS[type] || type || '-';
+
     const renderClosingDoc = (doc, idx) => {
         const structured = parseFieldsSafe(doc.fields || {});
-        // Exclude visual_marks from flat lookups and table search
-        // (LLM sometimes stores them inside structured, which breaks findMainTable)
         const { visual_marks: _vm, ...fieldsData } = structured;
         const flat = flattenObj(fieldsData);
-        // Prefer the explicit 'items' key; only fall back to findMainTable if absent
         const table = (Array.isArray(fieldsData.items) && fieldsData.items.length > 0)
             ? fieldsData.items
             : findMainTable(fieldsData);
 
-        // ИНН покупателя
-        const org      = getValue(flat, ['buyer_inn','buyer inn','инн_покупателя','инн_заказчика','покупатель_инн']);
-        // Продавец
-        const contrName = getValue(flat, ['seller_name','seller name','наименование_продавца','имя_продавца']);
-        const contrINN  = getValue(flat, ['seller_inn','seller inn','инн_продавца','инн_исполнителя','продавца_инн','consignor_inn','consignor inn']);
+        // ── Поля (логика полностью совпадает с excel.js) ─────────────────────
+        const buyerINN  = getValue(flat, ['buyer_inn','buyer inn','инн_покупателя','инн_заказчика','покупатель_инн']);
+        const sellerName= getValue(flat, ['seller_name','seller name','наименование_продавца','имя_продавца','исполнитель name','поставщик name']);
+        const sellerINN = getValue(flat, ['seller_inn','seller inn','инн_продавца','инн_исполнителя','продавца_инн','consignor_inn','consignor inn']);
         const docNum    = getValue(flat, ['document_number','номер_документа','номер_счета','номер']);
-        // Сумма: total_with_vat раньше чем просто total, иначе subtotal матчится первым
-        const docSum    = getValue(flat, [
-            'total_with_vat','amounts total_with_vat','итого_с_ндс','сумма_с_ндс',
-            'total_amount','amount','итого','сумма_документа',
-        ]);
-        // Договор: сначала basis_document, потом contract_*
-        const basisType   = getValue(flat, ['basis_document type','basis document type']);
-        const basisNumber = getValue(flat, ['basis_document number','basis document number','contract_number','номер_договора','договор_номер']);
-        const basisDate   = getValue(flat, ['basis_document date','basis document date']);
-        const contractTitle = getValue(flat, ['contract_title','договор','основание']);
-        const contract = contractTitle
-            || [basisType, basisNumber, basisDate ? `от ${basisDate}` : ''].filter(Boolean).join(' ');
         const docDate   = getValue(flat, ['document_date','дата_документа','дата']);
-        // vat_rate often lives only inside items[0]
+        const docSum    = getValue(flat, ['total_with_vat','amounts total_with_vat','итого_с_ндс','сумма_с_ндс','total_amount','amount','итого','сумма_документа']);
         const vatRate   = getValue(flat, ['vat_rate','ставка_ндс','ндс_ставка'])
             || (table.length > 0 ? getValue(flattenObj(table[0]), ['vat_rate','ставка_ндс','ндс_ставка']) : '');
+        const basisType   = getValue(flat, ['basis_document type','basis document type','тип_основания']);
+        const basisNumber = getValue(flat, ['basis_document number','basis document number','contract_number','номер_договора','договор_номер']);
+        const basisDate   = getValue(flat, ['basis_document date','basis document date','дата_договора']);
+        const contractTitle = getValue(flat, ['contract_title','договор','основание']);
+        const contractStr = contractTitle
+            || [basisType, basisNumber, basisDate ? `от ${basisDate}` : ''].filter(Boolean).join(' ');
 
-        const requisitesText = [
-            `Контрагент: ${contrName || contrINN || '-'}`,
-            `ИНН продавца: ${contrINN || '-'}`,
-            `Номер документа: ${docNum || '-'}`,
-            `Сумма с НДС: ${docSum || '-'}`,
-            `Номер договора: ${contract || '-'}`,
-        ].join('\n');
-
+        // ── Таблица товаров (формат совпадает с excel.js) ────────────────────
         const tableText = table.length > 0 ? table.map(item => {
             const f = flattenObj(item);
-            const name = getValue(f, ['name','description','наименование','товар','услуга']) || '-';
-            const qty  = getValue(f, ['quantity','количество','кол-во','qty']) || '-';
-            const price= getValue(f, ['price_without_vat','unit_price','price','цена']) || '-';
-            const sub  = getValue(f, ['amount_without_vat','subtotal','сумма_без_ндс','сумма']) || '-';
-            const vat  = getValue(f, ['vat_rate','ставка_ндс']) || '-';
-            const tax  = getValue(f, ['vat_amount','сумма_ндс','ндс']) || '-';
-            const tot  = getValue(f, ['amount_with_vat','total','total_amount','итого']) || '-';
-            return `Наименование: ${name}, Кол-во: ${qty}, Цена: ${price}, Без налога: ${sub}, НДС%: ${vat}, НДС: ${tax}, Итого: ${tot}`;
-        }).join('\n') : '-';
+            const name  = getValue(f, ['name','description','наименование','товар','услуга']) || '-';
+            const qty   = getValue(f, ['quantity','кол-во','количество','qty']) || '-';
+            const price = getValue(f, ['price_without_vat','unit_price','price','цена']) || '-';
+            const sub   = getValue(f, ['amount_without_vat','subtotal','сумма_без_ндс']) || '-';
+            const vat   = getValue(f, ['vat_rate','ставка_ндс','ндс_ставка']) || '-';
+            const tax   = getValue(f, ['vat_amount','сумма_налога','сумма_ндс','ндс']) || '-';
+            const tot   = getValue(f, ['amount_with_vat','total_with_vat','total','итого']) || '-';
+            return `Наименование: ${name}, Кол-во: ${qty}, Цена: ${price}, Без НДС: ${sub}, НДС%: ${vat}, НДС: ${tax}, Итого: ${tot}`;
+        }).join(';\n') : '-';
 
+        // ── Описание — единый блок, как колонка «Описание» в Excel ───────────
+        const descriptionLines = [
+            sellerName  ? `Контрагент: ${sellerName}`      : null,
+            sellerINN   ? `ИНН продавца: ${sellerINN}`     : null,
+            docNum      ? `Номер документа: ${docNum}`     : null,
+            docDate     ? `Дата документа: ${docDate}`     : null,
+            docSum      ? `Сумма с НДС: ${docSum}`         : null,
+            vatRate     ? `Ставка НДС: ${vatRate}`         : null,
+            contractStr ? `Договор: ${contractStr}`        : null,
+            table.length > 0 ? `\n${tableText}`            : null,
+        ].filter(Boolean).join('\n');
+
+        // ── 3 карточки, как в Excel: Вид / ИНН покупателя / Описание ─────────
         const cols = [
-            { label: 'Организация (ИНН покупателя)', value: org || '-', id: `cd-org-${idx}` },
-            { label: 'Реквизиты контрагента', value: requisitesText, id: `cd-req-${idx}`, multi: true },
-            { label: 'Дата документа', value: docDate || '-', id: `cd-date-${idx}` },
-            { label: 'Ставка НДС', value: vatRate || '-', id: `cd-vat-${idx}` },
-            { label: 'Договор / Основание', value: contract || '-', id: `cd-contr-${idx}` },
-            { label: 'Вид документа', value: doc.document_type || '-', id: `cd-type-${idx}` },
-            { label: 'Таблица товаров / услуг', value: tableText, id: `cd-table-${idx}`, multi: true },
+            { label: 'Вид документа',               value: getDocTypeLabel(doc.document_type), id: `cd-type-${idx}` },
+            { label: 'Организация (ИНН покупателя)', value: buyerINN || '-',                   id: `cd-org-${idx}` },
+            { label: 'Описание',                     value: descriptionLines || '-',            id: `cd-desc-${idx}`, multi: true },
         ];
 
         return (
             <div key={idx} className="mb-6">
                 <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-bold text-slate-900">{doc.document_type || 'Документ'}</h2>
+                    <h2 className="text-lg font-bold text-slate-900">{getDocTypeLabel(doc.document_type)}</h2>
                     {doc.confidence && (
                         <span className="text-xs font-bold px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full">
                             Точность: {(doc.confidence * 100).toFixed(0)}%
