@@ -8,6 +8,7 @@ from app.config.settings import settings
 import uuid
 import os
 import shutil
+import email.header
 from datetime import datetime
 from app.services.auth_service import get_current_user, get_current_admin_user
 from app.models.models import User
@@ -21,10 +22,34 @@ class FeedbackCreate(BaseModel):
 
 router = APIRouter()
 
+
+def _decode_filename(raw: str) -> str:
+    """Decode RFC 2047 MIME encoded-word filename (=?utf-8?B?...?=) to plain string."""
+    if not raw:
+        return "upload.pdf"
+    if raw.startswith("=?"):
+        try:
+            parts = email.header.decode_header(raw)
+            decoded = ""
+            for part, charset in parts:
+                if isinstance(part, bytes):
+                    decoded += part.decode(charset or "utf-8", errors="replace")
+                else:
+                    decoded += str(part)
+            if decoded:
+                return decoded
+        except Exception:
+            pass
+    return raw
+
+
 def save_upload_file(upload_file: UploadFile, job_id: uuid.UUID) -> str:
     upload_dir = os.path.join(settings.UPLOAD_DIR, str(job_id))
     os.makedirs(upload_dir, exist_ok=True)
-    file_path = os.path.join(upload_dir, upload_file.filename)
+    filename = _decode_filename(upload_file.filename or "upload.pdf")
+    # Strip any path separators to prevent directory traversal
+    filename = os.path.basename(filename) or "upload.pdf"
+    file_path = os.path.join(upload_dir, filename)
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(upload_file.file, buffer)
     return file_path
