@@ -388,13 +388,16 @@ class OCREngine:
                     if rotation != 0:
                         logs.append(("ORIENTATION", f"OSD detected incorrect orientation. Auto-rotating page {i+1} by {rotation} degrees."))
                         page.set_rotation(rotation)
-                        
+
                     # 2.2 Header Extraction on the now-correctly oriented page
-                    clip = fitz.Rect(0, 0, page.rect.width, page.rect.height * 0.35)
+                    # При повороте страницы заголовок может оказаться не в первых 35%,
+                    # поэтому сканируем 65% страницы чтобы захватить метку типа документа
+                    crop_ratio = 0.65 if rotation != 0 else 0.35
+                    clip = fitz.Rect(0, 0, page.rect.width, page.rect.height * crop_ratio)
                     mat = fitz.Matrix(2.0, 2.0)
                     pix = page.get_pixmap(matrix=mat, clip=clip, alpha=False)
-                    
-                    logs.append(("OCR_START", f"Running Tesserocr on Page {i+1} (in memory, 35% crop)"))
+
+                    logs.append(("OCR_START", f"Running Tesserocr on Page {i+1} (in memory, {int(crop_ratio*100)}% crop, rotation={rotation}°)"))
                     page_text += "\n" + extract_text_from_raw_samples(
                         pix.samples, pix.width, pix.height, pix.n, pix.stride
                     )
